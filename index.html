@@ -30,10 +30,12 @@ th{color:var(--mu);font-weight:600;font-size:12px;text-transform:uppercase}.wrap
 #toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#fff;color:#000;padding:12px 18px;border-radius:12px;font-weight:600;display:none;z-index:20;max-width:92%;text-align:center}
 #toast.e{background:var(--er);color:#fff}
 dialog{background:var(--card);color:var(--tx);border:1px solid var(--line);border-radius:18px;width:92%;max-width:420px}dialog::backdrop{background:#000a}
+#ov{position:fixed;inset:0;background:#000c;display:none;align-items:center;justify-content:center;z-index:30;padding:20px}
+#ov .b{background:var(--card);border:2px solid var(--ok);border-radius:24px;padding:28px;text-align:center;max-width:340px;width:100%}
 </style></head>
 <body>
 <header><div class="logo">Logi<b>Track</b> Presenze</div><div class="mu" id="who"></div></header>
-<main id="app"></main><div id="toast"></div><dialog id="dlg"></dialog>
+<main id="app"></main><div id="toast"></div><dialog id="dlg"></dialog><div id="ov" onclick="this.style.display='none'"></div>
 <script>
 const SB=supabase.createClient('https://mhnrsznxrohpgjelunjj.supabase.co','sb_publishable_n9iHkNj__gNVlihuhlMETw_O7_UxMab');
 const $=s=>document.querySelector(s),app=$('#app');
@@ -44,7 +46,7 @@ const NEXT={'':['ENTRATA'],USCITA:['ENTRATA'],ENTRATA:['INIZIO_PAUSA','USCITA'],
 const hm=d=>new Date(d).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
 const dt=d=>new Date(d).toLocaleString('it-IT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
 const dkey=d=>{d=new Date(d);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
-let tok=localStorage.getItem('lt_tok'),scan=null,tm=null,ad='',tab='oggi',day=dkey(new Date()),mon=dkey(new Date()).slice(0,7),OPS=[],ROWS=[],CFG=null;
+let tok=localStorage.getItem('lt_tok'),scan=null,tm=null,ad='',tab='oggi',day=dkey(new Date()),mon=dkey(new Date()).slice(0,7),OPS=[],ROWS=[],CFG=null,EV=[];
 function toast(m,e){const t=$('#toast');t.textContent=m;t.className=e?'e':'';t.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>t.style.display='none',4500)}
 async function rpc(fn,a){const{data,error}=await SB.rpc(fn,a);if(error){toast(error.message,1);throw error}return data}
 function stopScan(){if(scan){scan.stop().catch(()=>{});scan=null}}
@@ -64,8 +66,9 @@ async function opView(st){
   <div class="card"><div class="row" style="align-items:center"><div><div class="mu">Ciao</div><h2 style="margin:0">${esc(st.nome)}</h2></div>
     <div style="text-align:right"><span class="pill ${pc}">${lab}</span></div></div>
     ${NEXT[ult].map(t=>`<div class="row"><button class="${COL[t]}" onclick="qr('${t}')">${T[t]} · scansiona QR</button>${st.gps?`<button class="s" onclick="gps('${t}')">${T[t]} · GPS</button>`:''}</div>`).join('')}
-    <div id="scanbox" style="display:none"><div id="reader"></div><button class="s" style="margin-top:8px" onclick="stopScan();$('#scanbox').style.display='none'">Annulla</button></div>
+    <div id="scanbox" style="display:none"><div id="scanlab" style="font-weight:700;margin-bottom:8px"></div><div id="reader"></div><button class="s" style="margin-top:8px" onclick="stopScan();$('#scanbox').style.display='none'">Annulla</button></div>
     <button class="s sm" style="margin-top:6px" onclick="opLogout()">Esci</button></div>
+  <div class="card"><h2>Oggi</h2>${(()=>{const o=st.storico.filter(x=>dkey(x.orario)===dkey(new Date())).reverse();return o.length?o.map(x=>`<div class="row" style="margin:0;padding:8px 0;border-bottom:1px solid var(--line)"><b style="color:var(--${COL[x.tipo]})">${T[x.tipo]}</b><b style="text-align:right">${hm(x.orario)}</b></div>`).join(''):'<p class="mu">Nessuna timbratura oggi.</p>'})()}</div>
   <div class="card"><h2>Ultime timbrature</h2>${st.storico.length?st.storico.map(x=>`<div class="row" style="margin:0;padding:8px 0;border-bottom:1px solid var(--line)"><b>${T[x.tipo]}</b><span class="mu" style="text-align:right">${dt(x.orario)} · ${x.metodo}</span></div>`).join(''):'<p class="mu">Nessuna timbratura.</p>'}</div>
   <div class="card"><h2>Richiedi permesso / ferie</h2>
     <select id="lt"><option>Permesso / ROL</option><option>Ferie</option><option>Malattia</option><option>Altro</option></select>
@@ -74,10 +77,13 @@ async function opView(st){
     ${st.permessi.map(p=>`<div class="row mu" style="margin:8px 0 0"><span>${esc(p.tipologia)} · ${p.dal} → ${p.al}</span><span style="text-align:right">${p.stato}</span></div>`).join('')}</div></div>`}
 async function opLogin(){const r=await rpc('lt_login',{p_codice:$('#c').value,p_pin:$('#p').value});if(r.errore)return toast(r.errore,1);tok=r.token;localStorage.setItem('lt_tok',tok);opView()}
 function opLogout(){tok=null;localStorage.removeItem('lt_tok');opView()}
-async function timbra(t,m,lat,lng,q){const st=await rpc('lt_timbra',{p_tok:tok,p_tipo:t,p_metodo:m,p_lat:lat,p_lng:lng,p_qr:q});navigator.vibrate?.(150);toast(T[t]+' registrata alle '+hm(new Date()));opView(st)}
-function qr(t){$('#scanbox').style.display='block';scan=new Html5Qrcode('reader');let busy=0;
+async function timbra(t,m,lat,lng,q){const st=await rpc('lt_timbra',{p_tok:tok,p_tipo:t,p_metodo:m,p_lat:lat,p_lng:lng,p_qr:q});navigator.vibrate?.(150);opView(st);conferma(t,st.nome)}
+function conferma(t,nome){const c='var(--'+COL[t]+')',o=$('#ov');
+  o.innerHTML=`<div class="b" style="border-color:${c}"><div style="font-size:54px;color:${c}">✓</div><h2 style="margin:6px 0">${T[t].toUpperCase()} REGISTRATA</h2><div class="mu">${esc(nome)}</div><div class="big" style="color:${c}">${hm(new Date())}</div><button style="margin-top:8px">OK</button></div>`;
+  o.style.display='flex';clearTimeout(conferma.t);conferma.t=setTimeout(()=>o.style.display='none',6000)}
+function qr(t){$('#scanbox').style.display='block';$('#scanlab').textContent='Stai timbrando: '+T[t];scan=new Html5Qrcode('reader');let busy=0;
   scan.start({facingMode:'environment'},{fps:10,qrbox:220},async txt=>{if(busy)return;busy=1;stopScan();$('#scanbox').style.display='none';try{await timbra(t,'QR',null,null,txt)}catch(e){}},()=>{}).catch(()=>toast('Fotocamera non disponibile: controlla i permessi',1))}
-function gps(t){if(!navigator.geolocation)return toast('GPS non supportato',1);toast('Rilevo la posizione…');
+function gps(t){if(!navigator.geolocation)return toast('GPS non supportato',1);toast('Rilevo la posizione per: '+T[t]+'…');
   navigator.geolocation.getCurrentPosition(async p=>{try{await timbra(t,'GPS',p.coords.latitude,p.coords.longitude,null)}catch(e){}},()=>toast('Posizione non disponibile: abilita il GPS',1),{enableHighAccuracy:true,timeout:12000,maximumAge:0})}
 async function permesso(){if(!$('#ld').value||!$('#la').value)return toast('Inserisci le date',1);
   const st=await rpc('lt_permesso',{p_tok:tok,p_tip:$('#lt').value,p_dal:$('#ld').value,p_al:$('#la').value,p_note:$('#ln').value});toast('Richiesta inviata');opView(st)}
@@ -110,18 +116,24 @@ async function go(t){tab=t;const N={oggi:'Oggi',pers:'Operatori',perm:'Permessi'
 async function tOggi(){
   const a=new Date(day+'T00:00'),b=new Date(a.getTime()+864e5);
   const[o,e]=await Promise.all([SB.from('lt_operatori').select('id,codice,nome').eq('attivo',true).order('nome'),SB.from('lt_timbrature').select('*').gte('orario',a.toISOString()).lt('orario',b.toISOString()).order('orario')]);
-  OPS=o.data||[];const ev=e.data||[];
+  OPS=o.data||[];const ev=EV=e.data||[];
   return `<div class="card"><div class="row"><input type="date" value="${day}" onchange="day=this.value;go('oggi')"><button class="s" onclick="day=dkey(new Date());go('oggi')">Oggi</button></div>
-  <p class="mu">Tocca una timbratura per eliminarla, «+» per aggiungerne una manuale.</p><div class="wrap"><table><tr><th>Operatore<th>Stato<th>Timbrature<th></tr>
+  <p class="mu">Tocca una timbratura per modificarla o eliminarla, «+» per aggiungerne una manuale.</p><div class="wrap"><table><tr><th>Operatore<th>Stato<th>Timbrature<th></tr>
   ${OPS.map(p=>{const x=ev.filter(y=>y.operatore_id===p.id),l=x[x.length-1];
     const[k,c]=!l?['p-er','Assente']:l.tipo==='INIZIO_PAUSA'?['p-wa','In pausa']:l.tipo==='USCITA'?['p-no','Uscito']:['p-ok','In servizio'];
-    return `<tr><td><b>${esc(p.nome)}</b><div class="mu">${esc(p.codice)}</div><td><span class="pill ${k}">${c}</span><td>${x.map(y=>`<span class="ev mu" title="${y.metodo}" onclick="delT('${y.id}')">${T[y.tipo]} <b style="color:var(--tx)">${hm(y.orario)}</b> ✕</span>`).join('')}<td><button class="sm s" onclick="addT('${p.id}')">+</button>`}).join('')}</table></div></div>`}
+    return `<tr><td><b>${esc(p.nome)}</b><div class="mu">${esc(p.codice)}</div><td><span class="pill ${k}">${c}</span><td>${x.map(y=>`<span class="ev mu" title="${y.metodo}" onclick="editT('${y.id}')">${T[y.tipo]} <b style="color:var(--tx)">${hm(y.orario)}</b> ✎</span>`).join('')}<td><button class="sm s" onclick="addT('${p.id}')">+</button>`}).join('')}</table></div></div>`}
 function addT(id){$('#dlg').innerHTML=`<h2>Aggiungi timbratura</h2><select id="ao">${OPS.map(o=>`<option value="${o.id}" ${o.id===id?'selected':''}>${esc(o.nome)}</option>`).join('')}</select>
   <select id="at">${Object.entries(T).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select><input id="aw" type="datetime-local" value="${day}T08:00">
   <div class="row"><button class="s" onclick="$('#dlg').close()">Annulla</button><button onclick="saveT()">Salva</button></div>`;$('#dlg').showModal()}
 async function saveT(){const{error}=await SB.from('lt_timbrature').insert({operatore_id:$('#ao').value,tipo:$('#at').value,metodo:'ADMIN',orario:new Date($('#aw').value).toISOString(),modificata_da:ad});
   if(error)return toast(error.message,1);$('#dlg').close();toast('Timbratura aggiunta');go('oggi')}
-async function delT(id){if(!confirm('Eliminare questa timbratura?'))return;const{error}=await SB.from('lt_timbrature').delete().eq('id',id);if(error)return toast(error.message,1);go('oggi')}
+async function delT(id){if(!confirm('Eliminare questa timbratura?'))return;const{error}=await SB.from('lt_timbrature').delete().eq('id',id);if(error)return toast(error.message,1);$('#dlg').close();go('oggi')}
+const loc=d=>{d=new Date(d);d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,16)};
+function editT(id){const x=EV.find(y=>y.id===id);if(!x)return;const p=OPS.find(o=>o.id===x.operatore_id);
+  $('#dlg').innerHTML=`<h2>Modifica timbratura</h2><div class="mu" style="margin-bottom:8px">${esc(p?p.nome:'')} · inserita via ${x.metodo}${x.modificata_da?' · modificata da '+esc(x.modificata_da):''}</div>
+  <select id="et">${Object.entries(T).map(([k,v])=>`<option value="${k}" ${k===x.tipo?'selected':''}>${v}</option>`).join('')}</select><input id="ew" type="datetime-local" value="${loc(x.orario)}">
+  <div class="row"><button class="er" onclick="delT('${id}')">Elimina</button><button class="s" onclick="$('#dlg').close()">Annulla</button><button onclick="saveE('${id}')">Salva</button></div>`;$('#dlg').showModal()}
+async function saveE(id){const{error}=await SB.from('lt_timbrature').update({tipo:$('#et').value,orario:new Date($('#ew').value).toISOString(),modificata_da:ad}).eq('id',id);if(error)return toast(error.message,1);$('#dlg').close();toast('Timbratura modificata');go('oggi')}
 async function tPers(){const{data}=await SB.from('lt_operatori').select('*').order('nome');
   return `<div class="card"><h2>Nuovo operatore</h2><div class="row"><input id="nn" placeholder="Nome e cognome"><input id="nc" placeholder="Codice (es. LO00021)"><input id="np" placeholder="PIN (4-8 cifre)" inputmode="numeric"></div>
   <div class="row"><input id="ns" value="CANDIDA"><label class="mu" style="display:flex;align-items:center;gap:8px"><input id="ng" type="checkbox" style="width:auto;margin:0"> Timbratura GPS</label><button onclick="newOp()">Aggiungi</button></div></div>
