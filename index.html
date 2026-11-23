@@ -1,37 +1,48 @@
 <!doctype html>
 <html lang="it"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes"><meta name="theme-color" content="#0b0d12">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="theme-color" content="#4f46e5">
 <title>LogiTrack Presenze</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <style>
-:root{--bg:#0b0d12;--card:#141821;--line:#232a38;--tx:#eef1f6;--mu:#8b95a7;--ac:#4f8cff;--ok:#2fd38a;--wa:#f5a524;--er:#ff5d6c}
+:root{color-scheme:light;--bg:#fff;--card:#fff;--line:#e6e9f5;--tx:#1e2347;--mu:#6b7390;--ac:#6366f1;--ok:#16a34a;--wa:#d97706;--er:#e11d48}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
-header{padding:14px 18px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:5;display:flex;justify-content:space-between;align-items:center}
-.logo{font-weight:800;font-size:18px;letter-spacing:-.02em}.logo b{color:var(--ac)}
+body{margin:0;color:var(--tx);background:#fff linear-gradient(180deg,#eef2ff 0,#fff 340px) no-repeat;font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+header{padding:16px 18px;position:sticky;top:0;z-index:5;display:flex;justify-content:space-between;align-items:center;background:linear-gradient(135deg,#4f46e5,#7c3aed 55%,#ec4899);color:#fff;box-shadow:0 4px 18px rgba(99,102,241,.3)}
+.logo{font-weight:800;font-size:18px;letter-spacing:-.02em}.logo b{color:#fde68a}
+#who{color:#fff;opacity:.92;font-size:13px}
 main{max-width:980px;margin:0 auto;padding:18px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;margin-bottom:14px}
+.card{background:var(--card);border:1px solid var(--line);border-top:4px solid var(--ac);border-radius:18px;padding:18px;margin-bottom:14px;box-shadow:0 8px 24px rgba(99,102,241,.08)}
 h2{margin:0 0 12px;font-size:17px}
-input,select{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line);background:#0e1219;color:var(--tx);font:inherit;margin:4px 0 10px}
-button{font:inherit;font-weight:600;border:0;border-radius:12px;padding:13px 16px;background:var(--ac);color:#fff;cursor:pointer;width:100%}
-button.s{background:#222a3a}button.ok{background:var(--ok);color:#04130b}button.wa{background:var(--wa);color:#201400}button.er{background:var(--er)}
-button.sm{padding:6px 10px;font-size:13px;width:auto}button:disabled{opacity:.4}
+input,select{width:100%;padding:12px;border-radius:12px;border:1.5px solid #dfe3f5;background:#f8f9ff;color:var(--tx);font:inherit;margin:4px 0 10px}
+input:focus,select:focus{outline:0;border-color:var(--ac);background:#fff}
+button{font:inherit;font-weight:700;border:0;border-radius:12px;padding:13px 16px;background:linear-gradient(135deg,#6366f1,#7c3aed);color:#fff;cursor:pointer;width:100%;box-shadow:0 4px 10px rgba(99,102,241,.25)}
+button.s{background:#eef1fb;color:#3b3f6b;box-shadow:none}
+button.ok{background:linear-gradient(135deg,#22c55e,#16a34a)}
+button.wa{background:linear-gradient(135deg,#fbbf24,#f97316)}
+button.er{background:linear-gradient(135deg,#fb7185,#e11d48)}
+button.sm{padding:6px 10px;font-size:13px;width:auto}
+button:disabled{opacity:.35;box-shadow:none;cursor:not-allowed}
 .row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px}.row>*{flex:1;min-width:130px}
-.tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:14px}.tabs button{background:#171c27;white-space:nowrap;width:auto}.tabs button.on{background:var(--ac)}
-table{width:100%;border-collapse:collapse;font-size:14px}th,td{padding:10px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
-th{color:var(--mu);font-weight:600;font-size:12px;text-transform:uppercase}.wrap{overflow-x:auto}
+.tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:14px;padding-bottom:4px}
+.tabs button{background:#eef1fb;color:#3b3f6b;box-shadow:none;white-space:nowrap;width:auto}
+.tabs button.on{background:linear-gradient(135deg,#6366f1,#7c3aed);color:#fff;box-shadow:0 4px 10px rgba(99,102,241,.3)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:10px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{color:var(--mu);font-weight:700;font-size:12px;text-transform:uppercase}
+.wrap{overflow-x:auto}
 .pill{padding:3px 10px;border-radius:99px;font-size:12px;font-weight:700;white-space:nowrap}
-.p-ok{background:#12372a;color:var(--ok)}.p-wa{background:#3d2d0a;color:var(--wa)}.p-no{background:#232a38;color:var(--mu)}.p-er{background:#3e1820;color:var(--er)}
-.big{font-size:40px;font-weight:800;font-variant-numeric:tabular-nums;text-align:center;margin:14px 0 4px}
+.p-ok{background:#dcfce7;color:#15803d}.p-wa{background:#fef3c7;color:#b45309}.p-no{background:#eef1fb;color:#6b7390}.p-er{background:#ffe4e6;color:#be123c}
+.big{font-size:40px;font-weight:800;font-variant-numeric:tabular-nums;text-align:center;margin:14px 0 4px;color:var(--ac)}
 .mu{color:var(--mu);font-size:13px}.ev{cursor:pointer;display:inline-block;margin:0 8px 4px 0}
-#toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#fff;color:#000;padding:12px 18px;border-radius:12px;font-weight:600;display:none;z-index:20;max-width:92%;text-align:center}
-#toast.e{background:var(--er);color:#fff}
-dialog{background:var(--card);color:var(--tx);border:1px solid var(--line);border-radius:18px;width:92%;max-width:420px}dialog::backdrop{background:#000a}
-#ov{position:fixed;inset:0;background:#000c;display:none;align-items:center;justify-content:center;z-index:30;padding:20px}
-#ov .b{background:var(--card);border:2px solid var(--ok);border-radius:24px;padding:28px;text-align:center;max-width:340px;width:100%}
+#toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#1e2347;color:#fff;padding:12px 18px;border-radius:12px;font-weight:600;display:none;z-index:40;max-width:92%;text-align:center;box-shadow:0 8px 24px rgba(30,35,71,.35)}
+#toast.e{background:var(--er)}
+dialog{background:var(--card);color:var(--tx);border:1px solid var(--line);border-top:4px solid var(--ac);border-radius:18px;width:92%;max-width:420px}
+dialog::backdrop{background:rgba(30,35,71,.5)}
+#ov{position:fixed;inset:0;background:rgba(30,35,71,.55);display:none;align-items:center;justify-content:center;z-index:30;padding:20px}
+#ov .b{background:var(--card);border:3px solid var(--ok);border-radius:24px;padding:28px;text-align:center;max-width:340px;width:100%;box-shadow:0 20px 50px rgba(30,35,71,.3)}
 </style></head>
 <body>
 <header><div class="logo">Logi<b>Track</b> Presenze</div><div class="mu" id="who"></div></header>
@@ -45,10 +56,16 @@ const COL={ENTRATA:'ok',FINE_PAUSA:'ok',INIZIO_PAUSA:'wa',USCITA:'er'};
 const NEXT={'':['ENTRATA'],USCITA:['ENTRATA'],ENTRATA:['INIZIO_PAUSA','USCITA'],FINE_PAUSA:['INIZIO_PAUSA','USCITA'],INIZIO_PAUSA:['FINE_PAUSA']};
 const hm=d=>new Date(d).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
 const dt=d=>new Date(d).toLocaleString('it-IT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+const gg=g=>new Date(g+'T12:00').toLocaleDateString('it-IT',{weekday:'short',day:'2-digit',month:'2-digit'});const formatD=d=>d.split('-').reverse().join('/');
 const dkey=d=>{d=new Date(d);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
-let tok=localStorage.getItem('lt_tok'),scan=null,tm=null,ad='',tab='oggi',day=dkey(new Date()),mon=dkey(new Date()).slice(0,7),OPS=[],ROWS=[],CFG=null,EV=[];
+let tok=localStorage.getItem('lt_tok'),scan=null,tm=null,ad='',tab='oggi',day=dkey(new Date()),mon=dkey(new Date()).slice(0,7),OPS=[],ROWS=[],CFG=null,EV=[],LAST=null,shown='',lastAl=0,AC=null;
 function toast(m,e){const t=$('#toast');t.textContent=m;t.className=e?'e':'';t.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>t.style.display='none',4500)}
 async function rpc(fn,a){const{data,error}=await SB.rpc(fn,a);if(error){toast(error.message,1);throw error}return data}
+function beep(n=1){try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();for(let i=0;i<n;i++){const o=AC.createOscillator(),g=AC.createGain(),t=AC.currentTime+i*.28;o.frequency.value=i%2?1318:1046;g.gain.setValueAtTime(.25,t);g.gain.exponentialRampToValueAtTime(.001,t+.2);o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+.2)}}catch(e){}}
+function alertMsg(st){const td=st.storico.filter(x=>dkey(x.orario)===dkey(new Date())).reverse(),l=td[td.length-1];if(!l)return'';const n=new Date(),m=n.getHours()*60+n.getMinutes();
+  if((l.tipo==='ENTRATA'||l.tipo==='FINE_PAUSA')&&!td.some(x=>x.tipo==='INIZIO_PAUSA')&&m>=810)return'Sono passate le 13:30: ricordati di timbrare l\'uscita pausa.';
+  if(l.tipo==='INIZIO_PAUSA'&&(n-new Date(l.orario))/6e4>=60)return'La pausa è terminata (60 minuti): non dimenticare di timbrare il rientro pausa!';return''}
+setInterval(()=>{if(!tok||!LAST||scan)return;const m=alertMsg(LAST);if(m&&Date.now()-lastAl>18e4){lastAl=Date.now();beep(3);navigator.vibrate?.([200,100,200])}if(m!==shown)opView(LAST)},20000);
 function stopScan(){if(scan){scan.stop().catch(()=>{});scan=null}}
 
 /* ---------- OPERATORE ---------- */
@@ -59,34 +76,35 @@ async function opView(st){
     <label class="mu">PIN</label><input id="p" type="password" inputmode="numeric" autocomplete="current-password">
     <button onclick="opLogin()">Accedi</button></div>`;return}
   try{st=st||await rpc('lt_stato',{p_tok:tok})}catch(e){if(/Sessione/.test(e.message)){tok=null;localStorage.removeItem('lt_tok');opView()}return}
-  const ult=st.storico[0]?st.storico[0].tipo:'';
+  LAST=st;const al=alertMsg(st);shown=al;const ult=st.storico[0]?st.storico[0].tipo:'';
   const [lab,pc]=ult==='ENTRATA'||ult==='FINE_PAUSA'?['In servizio','p-ok']:ult==='INIZIO_PAUSA'?['In pausa','p-wa']:['Fuori servizio','p-no'];
   $('#who').textContent=st.nome;
-  app.innerHTML=`<div style="max-width:560px;margin:0 auto">
+  app.innerHTML=`<div style="max-width:560px;margin:0 auto">${al?`<div class="card" style="border-top-color:var(--er);background:#fff1f2"><b style="color:var(--er)">⏰ ${esc(al)}</b></div>`:''}
   <div class="card"><div class="row" style="align-items:center"><div><div class="mu">Ciao</div><h2 style="margin:0">${esc(st.nome)}</h2></div>
     <div style="text-align:right"><span class="pill ${pc}">${lab}</span></div></div>
-    ${NEXT[ult].map(t=>`<div class="row"><button class="${COL[t]}" onclick="qr('${t}')">${T[t]} · scansiona QR</button>${st.gps?`<button class="s" onclick="gps('${t}')">${T[t]} · GPS</button>`:''}</div>`).join('')}
+    ${Object.keys(T).map(t=>{const on=NEXT[ult].includes(t);return `<div class="row"><button class="${COL[t]}" ${on?'':'disabled'} onclick="qr('${t}')">${T[t]} · QR</button>${st.gps?`<button class="s" ${on?'':'disabled'} onclick="gps('${t}')">GPS</button>`:''}</div>`}).join('')}
     <div id="scanbox" style="display:none"><div id="scanlab" style="font-weight:700;margin-bottom:8px"></div><div id="reader"></div><button class="s" style="margin-top:8px" onclick="stopScan();$('#scanbox').style.display='none'">Annulla</button></div>
     <button class="s sm" style="margin-top:6px" onclick="opLogout()">Esci</button></div>
   <div class="card"><h2>Oggi</h2>${(()=>{const o=st.storico.filter(x=>dkey(x.orario)===dkey(new Date())).reverse();return o.length?o.map(x=>`<div class="row" style="margin:0;padding:8px 0;border-bottom:1px solid var(--line)"><b style="color:var(--${COL[x.tipo]})">${T[x.tipo]}</b><b style="text-align:right">${hm(x.orario)}</b></div>`).join(''):'<p class="mu">Nessuna timbratura oggi.</p>'})()}</div>
+  <div class="card"><h2>I miei turni</h2>${st.turni&&st.turni.length?st.turni.map(x=>`<div class="row" style="margin:0;padding:8px 0;border-bottom:1px solid var(--line)"><b${x.giorno===dkey(new Date())?' style="color:var(--ac)"':''}>${gg(x.giorno)}</b><span style="text-align:right">${x.riposo?'<span class="pill p-no">Riposo</span>':x.inizio.slice(0,5)+' – '+x.fine.slice(0,5)}</span></div>`).join(''):'<p class="mu">Nessun turno inserito.</p>'}</div>
   <div class="card"><h2>Ultime timbrature</h2>${st.storico.length?st.storico.map(x=>`<div class="row" style="margin:0;padding:8px 0;border-bottom:1px solid var(--line)"><b>${T[x.tipo]}</b><span class="mu" style="text-align:right">${dt(x.orario)} · ${x.metodo}</span></div>`).join(''):'<p class="mu">Nessuna timbratura.</p>'}</div>
   <div class="card"><h2>Richiedi permesso / ferie</h2>
     <select id="lt"><option>Permesso / ROL</option><option>Ferie</option><option>Malattia</option><option>Altro</option></select>
-    <div class="row"><input id="ld" type="date"><input id="la" type="date"></div><input id="ln" placeholder="Note (facoltative)">
+    <label class="mu">Dal (data e ora)</label><input id="ld" type="datetime-local"><label class="mu">Al (data e ora)</label><input id="la" type="datetime-local"><input id="ln" placeholder="Note (facoltative)">
     <button class="s" onclick="permesso()">Invia richiesta</button>
-    ${st.permessi.map(p=>`<div class="row mu" style="margin:8px 0 0"><span>${esc(p.tipologia)} · ${p.dal} → ${p.al}</span><span style="text-align:right">${p.stato}</span></div>`).join('')}</div></div>`}
-async function opLogin(){const r=await rpc('lt_login',{p_codice:$('#c').value,p_pin:$('#p').value});if(r.errore)return toast(r.errore,1);tok=r.token;localStorage.setItem('lt_tok',tok);opView()}
+    ${st.permessi.map(p=>`<div class="row mu" style="margin:8px 0 0"><span>${esc(p.tipologia)} · ${dt(p.dal)} → ${dt(p.al)}</span><span style="text-align:right">${p.stato}</span></div>`).join('')}</div></div>`}
+async function opLogin(){beep(0);const r=await rpc('lt_login',{p_codice:$('#c').value,p_pin:$('#p').value});if(r.errore)return toast(r.errore,1);tok=r.token;localStorage.setItem('lt_tok',tok);opView()}
 function opLogout(){tok=null;localStorage.removeItem('lt_tok');opView()}
 async function timbra(t,m,lat,lng,q){const st=await rpc('lt_timbra',{p_tok:tok,p_tipo:t,p_metodo:m,p_lat:lat,p_lng:lng,p_qr:q});navigator.vibrate?.(150);opView(st);conferma(t,st.nome)}
-function conferma(t,nome){const c='var(--'+COL[t]+')',o=$('#ov');
+function conferma(t,nome){beep(2);const c='var(--'+COL[t]+')',o=$('#ov');
   o.innerHTML=`<div class="b" style="border-color:${c}"><div style="font-size:54px;color:${c}">✓</div><h2 style="margin:6px 0">${T[t].toUpperCase()} REGISTRATA</h2><div class="mu">${esc(nome)}</div><div class="big" style="color:${c}">${hm(new Date())}</div><button style="margin-top:8px">OK</button></div>`;
   o.style.display='flex';clearTimeout(conferma.t);conferma.t=setTimeout(()=>o.style.display='none',6000)}
-function qr(t){$('#scanbox').style.display='block';$('#scanlab').textContent='Stai timbrando: '+T[t];scan=new Html5Qrcode('reader');let busy=0;
+function qr(t){beep(0);$('#scanbox').style.display='block';$('#scanlab').textContent='Stai timbrando: '+T[t];scan=new Html5Qrcode('reader');let busy=0;
   scan.start({facingMode:'environment'},{fps:10,qrbox:220},async txt=>{if(busy)return;busy=1;stopScan();$('#scanbox').style.display='none';try{await timbra(t,'QR',null,null,txt)}catch(e){}},()=>{}).catch(()=>toast('Fotocamera non disponibile: controlla i permessi',1))}
-function gps(t){if(!navigator.geolocation)return toast('GPS non supportato',1);toast('Rilevo la posizione per: '+T[t]+'…');
+function gps(t){beep(0);if(!navigator.geolocation)return toast('GPS non supportato',1);toast('Rilevo la posizione per: '+T[t]+'…');
   navigator.geolocation.getCurrentPosition(async p=>{try{await timbra(t,'GPS',p.coords.latitude,p.coords.longitude,null)}catch(e){}},()=>toast('Posizione non disponibile: abilita il GPS',1),{enableHighAccuracy:true,timeout:12000,maximumAge:0})}
 async function permesso(){if(!$('#ld').value||!$('#la').value)return toast('Inserisci le date',1);
-  const st=await rpc('lt_permesso',{p_tok:tok,p_tip:$('#lt').value,p_dal:$('#ld').value,p_al:$('#la').value,p_note:$('#ln').value});toast('Richiesta inviata');opView(st)}
+  const st=await rpc('lt_permesso',{p_tok:tok,p_tip:$('#lt').value,p_dal:new Date($('#ld').value).toISOString(),p_al:new Date($('#la').value).toISOString(),p_note:$('#ln').value});toast('Richiesta inviata');opView(st)}
 
 /* ---------- KIOSK ---------- */
 async function kioskView(){
@@ -110,18 +128,23 @@ async function adminView(){
   const{data:c}=await SB.from('lt_config').select('*').maybeSingle();
   if(!c){app.innerHTML=`<div class="card"><h2>Account non abilitato</h2><p class="mu">${esc(ad)} non è nella tabella lt_admins. Esegui schema.sql con la tua email.</p><button class="s" onclick="admLogout()">Esci</button></div>`;return}
   CFG=c;app.innerHTML=`<div class="tabs" id="tabs"></div><div id="tc"></div>`;go(tab)}
-async function go(t){tab=t;const N={oggi:'Oggi',pers:'Operatori',perm:'Permessi',rep:'Report',sede:'Sede GPS'};
+async function go(t){tab=t;const N={oggi:'Oggi',turni:'Turni',pers:'Operatori',perm:'Permessi',rep:'Report',sede:'Sede GPS'};
   $('#tabs').innerHTML=Object.entries(N).map(([k,v])=>`<button class="${k===t?'on':''}" onclick="go('${k}')">${v}</button>`).join('')+`<button onclick="location.hash='kiosk'">Terminale QR</button><button onclick="admLogout()">Esci</button>`;
-  $('#tc').innerHTML='<p class="mu">Carico…</p>';$('#tc').innerHTML=await({oggi:tOggi,pers:tPers,perm:tPerm,rep:tRep,sede:tSede})[t]()}
+  $('#tc').innerHTML='<p class="mu">Carico…</p>';$('#tc').innerHTML=await({oggi:tOggi,turni:tTurni,pers:tPers,perm:tPerm,rep:tRep,sede:tSede})[t]()}
 async function tOggi(){
   const a=new Date(day+'T00:00'),b=new Date(a.getTime()+864e5);
-  const[o,e]=await Promise.all([SB.from('lt_operatori').select('id,codice,nome').eq('attivo',true).order('nome'),SB.from('lt_timbrature').select('*').gte('orario',a.toISOString()).lt('orario',b.toISOString()).order('orario')]);
-  OPS=o.data||[];const ev=EV=e.data||[];
+  const[o,e,pm,tu]=await Promise.all([SB.from('lt_operatori').select('id,codice,nome').eq('attivo',true).order('nome'),SB.from('lt_timbrature').select('*').gte('orario',a.toISOString()).lt('orario',b.toISOString()).order('orario'),SB.from('lt_permessi').select('operatore_id,tipologia').eq('stato','Approvata').lt('dal',b.toISOString()).gt('al',a.toISOString()),SB.from('lt_turni').select('*').eq('giorno',day)]);
+  OPS=o.data||[];const ev=EV=e.data||[],P=pm.data||[],U=tu.data||[],n={pre:0,pau:0,usc:0,ass:0,giu:0,rip:0};
+  const rows=OPS.map(p=>{const x=ev.filter(y=>y.operatore_id===p.id),l=x[x.length-1],pe=P.find(y=>y.operatore_id===p.id),tn=U.find(y=>y.operatore_id===p.id);let k,c;
+    if(l){if(l.tipo==='INIZIO_PAUSA'){k='p-wa';c='In pausa';n.pau++}else if(l.tipo==='USCITA'){k='p-no';c='Uscito';n.usc++}else{k='p-ok';c='In servizio';n.pre++}}
+    else if(pe){k='p-no';c='Assente giustificato ('+esc(pe.tipologia)+')';n.giu++}
+    else if(tn&&tn.riposo){k='p-no';c='Riposo';n.rip++}
+    else{k='p-er';c='ASSENTE';n.ass++}
+    return `<tr><td><b>${esc(p.nome)}</b><div class="mu">${esc(p.codice)}${tn&&!tn.riposo?' · turno '+tn.inizio.slice(0,5)+'–'+tn.fine.slice(0,5):''}</div><td><span class="pill ${k}">${c}</span><td>${x.map(y=>`<span class="ev mu" title="${y.metodo}" onclick="editT('${y.id}')">${T[y.tipo]} <b style="color:var(--tx)">${hm(y.orario)}</b> ✎</span>`).join('')}<td><button class="sm s" onclick="addT('${p.id}')">+</button>`}).join('');
+  const bx=(v,t,c)=>`<div class="card" style="margin:0;border-top-color:${c};text-align:center;padding:12px"><div style="font-size:26px;font-weight:800;color:${c}">${v}</div><div class="mu">${t}</div></div>`;
   return `<div class="card"><div class="row"><input type="date" value="${day}" onchange="day=this.value;go('oggi')"><button class="s" onclick="day=dkey(new Date());go('oggi')">Oggi</button></div>
-  <p class="mu">Tocca una timbratura per modificarla o eliminarla, «+» per aggiungerne una manuale.</p><div class="wrap"><table><tr><th>Operatore<th>Stato<th>Timbrature<th></tr>
-  ${OPS.map(p=>{const x=ev.filter(y=>y.operatore_id===p.id),l=x[x.length-1];
-    const[k,c]=!l?['p-er','Assente']:l.tipo==='INIZIO_PAUSA'?['p-wa','In pausa']:l.tipo==='USCITA'?['p-no','Uscito']:['p-ok','In servizio'];
-    return `<tr><td><b>${esc(p.nome)}</b><div class="mu">${esc(p.codice)}</div><td><span class="pill ${k}">${c}</span><td>${x.map(y=>`<span class="ev mu" title="${y.metodo}" onclick="editT('${y.id}')">${T[y.tipo]} <b style="color:var(--tx)">${hm(y.orario)}</b> ✎</span>`).join('')}<td><button class="sm s" onclick="addT('${p.id}')">+</button>`}).join('')}</table></div></div>`}
+  <div class="row" style="margin-bottom:12px">${bx(n.pre+n.pau+n.usc,'Presenti','#16a34a')}${bx(n.pau,'In pausa','#d97706')}${bx(n.ass,'Assenti','#e11d48')}${bx(n.giu+n.rip,'Giustificati / riposo','#6366f1')}</div>
+  <p class="mu">Tocca una timbratura per modificarla o eliminarla, «+» per aggiungerne una. Solo l'admin può modificarle.</p><div class="wrap"><table><tr><th>Operatore<th>Stato<th>Timbrature<th></tr>${rows}</table></div></div>`}
 function addT(id){$('#dlg').innerHTML=`<h2>Aggiungi timbratura</h2><select id="ao">${OPS.map(o=>`<option value="${o.id}" ${o.id===id?'selected':''}>${esc(o.nome)}</option>`).join('')}</select>
   <select id="at">${Object.entries(T).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select><input id="aw" type="datetime-local" value="${day}T08:00">
   <div class="row"><button class="s" onclick="$('#dlg').close()">Annulla</button><button onclick="saveT()">Salva</button></div>`;$('#dlg').showModal()}
@@ -130,24 +153,27 @@ async function saveT(){const{error}=await SB.from('lt_timbrature').insert({opera
 async function delT(id){if(!confirm('Eliminare questa timbratura?'))return;const{error}=await SB.from('lt_timbrature').delete().eq('id',id);if(error)return toast(error.message,1);$('#dlg').close();go('oggi')}
 const loc=d=>{d=new Date(d);d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,16)};
 function editT(id){const x=EV.find(y=>y.id===id);if(!x)return;const p=OPS.find(o=>o.id===x.operatore_id);
-  $('#dlg').innerHTML=`<h2>Modifica timbratura</h2><div class="mu" style="margin-bottom:8px">${esc(p?p.nome:'')} · inserita via ${x.metodo}${x.modificata_da?' · modificata da '+esc(x.modificata_da):''}</div>
+  $('#dlg').innerHTML=`<h2>Modifica timbratura</h2><div class="mu" style="margin-bottom:8px">${esc(p?p.nome:'')} · inserita via ${x.metodo}${x.modificata_da?' · modificata da '+esc(x.modificata_da):''}${x.lat!=null?` · <a href="https://maps.google.com/?q=${x.lat},${x.lng}" target="_blank" rel="noopener">posizione</a>`:''}</div>
   <select id="et">${Object.entries(T).map(([k,v])=>`<option value="${k}" ${k===x.tipo?'selected':''}>${v}</option>`).join('')}</select><input id="ew" type="datetime-local" value="${loc(x.orario)}">
   <div class="row"><button class="er" onclick="delT('${id}')">Elimina</button><button class="s" onclick="$('#dlg').close()">Annulla</button><button onclick="saveE('${id}')">Salva</button></div>`;$('#dlg').showModal()}
 async function saveE(id){const{error}=await SB.from('lt_timbrature').update({tipo:$('#et').value,orario:new Date($('#ew').value).toISOString(),modificata_da:ad}).eq('id',id);if(error)return toast(error.message,1);$('#dlg').close();toast('Timbratura modificata');go('oggi')}
+const GO=[['off:50','Solo QR'],['sede:50','GPS in sede 50 m'],['sede:100','GPS in sede 100 m'],['ovunque:50','GPS ovunque (autisti)']];
+const gpsOpt=v=>GO.map(([x,l])=>`<option value="${x}" ${x===v?'selected':''}>${l}</option>`).join('');
 async function tPers(){const{data}=await SB.from('lt_operatori').select('*').order('nome');
   return `<div class="card"><h2>Nuovo operatore</h2><div class="row"><input id="nn" placeholder="Nome e cognome"><input id="nc" placeholder="Codice (es. LO00021)"><input id="np" placeholder="PIN (4-8 cifre)" inputmode="numeric"></div>
-  <div class="row"><input id="ns" value="CANDIDA"><label class="mu" style="display:flex;align-items:center;gap:8px"><input id="ng" type="checkbox" style="width:auto;margin:0"> Timbratura GPS</label><button onclick="newOp()">Aggiungi</button></div></div>
+  <div class="row"><input id="ns" value="CANDIDA"><select id="ng">${gpsOpt('off:50')}</select><button onclick="newOp()">Aggiungi</button></div></div>
   <div class="card"><div class="wrap"><table><tr><th>Operatore<th>Sede<th>GPS<th>Stato<th></tr>
   ${(data||[]).map(o=>`<tr><td><b>${esc(o.nome)}</b><div class="mu">${esc(o.codice)}</div><td>${esc(o.sede)}
-  <td><button class="sm ${o.gps?'ok':'s'}" onclick="upd('${o.id}',{gps:${!o.gps}})">${o.gps?'Attivo':'No'}</button>
+  <td><select onchange="setGps('${o.id}',this.value)" style="margin:0;padding:6px">${gpsOpt(o.gps_modo==='sede'?'sede:'+o.gps_raggio:o.gps_modo+':50')}</select>
   <td><button class="sm ${o.attivo?'s':'er'}" onclick="upd('${o.id}',{attivo:${!o.attivo}})">${o.attivo?'Attivo':'Disattivo'}</button>
   <td><button class="sm s" onclick="resetPin('${o.id}')">Nuovo PIN</button>`).join('')}</table></div></div>`}
-async function newOp(){try{await rpc('lt_crea_operatore',{p_codice:$('#nc').value,p_nome:$('#nn').value,p_pin:$('#np').value,p_sede:$('#ns').value,p_gps:$('#ng').checked});toast('Operatore creato');go('pers')}catch(e){}}
+async function newOp(){try{await rpc('lt_crea_operatore',{p_codice:$('#nc').value,p_nome:$('#nn').value,p_pin:$('#np').value,p_sede:$('#ns').value,p_modo:$('#ng').value.split(':')[0],p_raggio:+$('#ng').value.split(':')[1]});toast('Operatore creato');go('pers')}catch(e){}}
 async function upd(id,v){const{error}=await SB.from('lt_operatori').update(v).eq('id',id);if(error)return toast(error.message,1);go('pers')}
+async function setGps(id,v){const[m,r]=v.split(':');upd(id,{gps_modo:m,gps_raggio:+r,gps:m!=='off'})}
 async function resetPin(id){const p=prompt('Nuovo PIN (4-8 cifre):');if(!p)return;try{await rpc('lt_reset_pin',{p_id:id,p_pin:p});toast('PIN aggiornato')}catch(e){}}
 async function tPerm(){const{data}=await SB.from('lt_permessi').select('*,lt_operatori(nome)').order('dal',{ascending:false}).limit(100);
   return `<div class="card"><h2>Richieste</h2>${(data||[]).length?data.map(p=>`<div class="row" style="align-items:center;padding:10px 0;border-bottom:1px solid var(--line)">
-  <div><b>${esc(p.lt_operatori?.nome)}</b> · ${esc(p.tipologia)}<div class="mu">${p.dal} → ${p.al}${p.note?' · '+esc(p.note):''}</div></div>
+  <div><b>${esc(p.lt_operatori?.nome)}</b> · ${esc(p.tipologia)}<div class="mu">${dt(p.dal)} → ${dt(p.al)}${p.note?' · '+esc(p.note):''}</div></div>
   <div style="text-align:right">${p.stato==='In attesa'?`<button class="sm ok" onclick="setP('${p.id}','Approvata')">Approva</button> <button class="sm er" onclick="setP('${p.id}','Rifiutata')">Rifiuta</button>`:`<span class="pill ${p.stato==='Approvata'?'p-ok':'p-er'}">${p.stato}</span>`}</div></div>`).join(''):'<p class="mu">Nessuna richiesta.</p>'}</div>`}
 async function setP(id,s){const{error}=await SB.from('lt_permessi').update({stato:s}).eq('id',id);if(error)return toast(error.message,1);go('perm')}
 async function fetchAll(q){let r=[],i=0;for(;;){const{data}=await q().range(i,i+999);r=r.concat(data||[]);if(!data||data.length<1000)return r;i+=1000}}
@@ -165,12 +191,45 @@ async function tRep(){
   <div class="wrap"><table><tr><th>Operatore<th>Giorni<th>Ordinarie<th>Straord.<th>Totale</tr>${ROWS.map(r=>`<tr><td><b>${esc(r.p.nome)}</b><div class="mu">${esc(r.p.codice)}</div><td>${r.g}<td>${f(r.o)} h<td>${f(r.s)} h<td><b>${f(r.o+r.s)} h</b>`).join('')}</table></div></div>`}
 function csv(){const f=n=>n.toFixed(2).replace('.',',');const L=['Codice;Operatore;Giorni;Ore ordinarie;Ore straordinario;Totale'].concat(ROWS.map(r=>[r.p.codice,r.p.nome,r.g,f(r.o),f(r.s),f(r.o+r.s)].join(';')));
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+L.join('\n')],{type:'text/csv'}));a.download='presenze_'+mon+'.csv';a.click()}
-async function tSede(){return `<div class="card"><h2>Sede per timbratura GPS</h2><p class="mu">Gli operatori con GPS attivo possono timbrare solo entro il raggio da questo punto. Il controllo è fatto dal server.</p>
-  <div class="row"><input id="la1" placeholder="Latitudine" value="${CFG.hq_lat??''}"><input id="lo1" placeholder="Longitudine" value="${CFG.hq_lng??''}"><input id="ra1" type="number" placeholder="Raggio (m)" value="${CFG.raggio}"></div>
+async function tSede(){return `<div class="card"><h2>Sede per timbratura GPS</h2><p class="mu">Gli operatori con «GPS in sede» timbrano entro 50 o 100 m da questo punto (lo scegli per ogni operatore); «GPS ovunque» non ha limiti. Il controllo è fatto dal server.</p>
+  <div class="row"><input id="la1" placeholder="Latitudine" value="${CFG.hq_lat??''}"><input id="lo1" placeholder="Longitudine" value="${CFG.hq_lng??''}"></div>
   <div class="row"><button class="s" onclick="detect()">Rileva la mia posizione</button><button onclick="saveSede()">Salva</button></div></div>`}
 function detect(){navigator.geolocation.getCurrentPosition(p=>{$('#la1').value=p.coords.latitude.toFixed(6);$('#lo1').value=p.coords.longitude.toFixed(6)},()=>toast('Posizione non disponibile',1),{enableHighAccuracy:true})}
-async function saveSede(){const la=parseFloat($('#la1').value),lo=parseFloat($('#lo1').value),ra=parseInt($('#ra1').value)||50;if(isNaN(la)||isNaN(lo))return toast('Coordinate non valide',1);
+async function saveSede(){const la=parseFloat($('#la1').value),lo=parseFloat($('#lo1').value),ra=CFG.raggio;if(isNaN(la)||isNaN(lo))return toast('Coordinate non valide',1);
   const{error}=await SB.from('lt_config').update({hq_lat:la,hq_lng:lo,raggio:ra}).eq('id',1);if(error)return toast(error.message,1);CFG={...CFG,hq_lat:la,hq_lng:lo,raggio:ra};toast('Sede salvata')}
+
+/* ---------- TURNI ---------- */
+const GS=['Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
+const addD=(d,n)=>{d=new Date(d+'T12:00');d.setDate(d.getDate()+n);return dkey(d)};
+const lun=d=>{const x=new Date(d+'T12:00');return addD(d,-((x.getDay()+6)%7))};
+let wk=lun(dkey(new Date())),TU=[];
+async function tTurni(){
+  const[o,t]=await Promise.all([SB.from('lt_operatori').select('id,nome').eq('attivo',true).order('nome'),SB.from('lt_turni').select('*').gte('giorno',wk).lte('giorno',addD(wk,6))]);
+  OPS=o.data||[];TU=t.data||[];const days=[0,1,2,3,4,5,6].map(i=>addD(wk,i));
+  const ck='style="width:auto;margin:0 5px 0 0"',lb='class="mu" style="flex:0 0 auto;min-width:0"';
+  return `<div class="card"><h2>Inserimento rapido dei turni</h2>
+   <div class="row"><div><label class="mu">Da (lunedì)</label><input id="ti" type="date" value="${wk}"></div><div><label class="mu">Per quante settimane</label><select id="tw"><option value="1">1</option><option value="4" selected>4</option><option value="8">8</option><option value="12">12</option></select></div></div>
+   <div class="row"><div><label class="mu">Inizio</label><input id="ts" type="time" value="08:00"></div><div><label class="mu">Fine</label><input id="te" type="time" value="16:00"></div></div>
+   <div class="row" style="gap:8px">${GS.map((g,i)=>`<label ${lb}><input type="checkbox" class="tg" value="${i}" ${i<5?'checked':''} ${ck}>${g}</label>`).join('')}</div>
+   <label class="mu" style="display:block"><input type="checkbox" id="tr" checked ${ck}>Segna «Riposo» negli altri giorni</label>
+   <label class="mu" style="display:block;margin:8px 0"><input type="checkbox" checked onchange="document.querySelectorAll('.to').forEach(c=>c.checked=this.checked)" ${ck}><b>Tutti gli operatori</b></label>
+   <div class="row" style="gap:6px 14px">${OPS.map(p=>`<label ${lb}><input type="checkbox" class="to" value="${p.id}" checked ${ck}>${esc(p.nome)}</label>`).join('')}</div>
+   <button onclick="applicaTurni()">Applica i turni</button></div>
+  <div class="card"><div class="row" style="align-items:center;flex-wrap:nowrap"><button class="s sm" onclick="wk=addD(wk,-7);go('turni')">◀</button><b style="text-align:center">Settimana dal ${formatD(wk)}</b><button class="s sm" onclick="wk=addD(wk,7);go('turni')">▶</button></div>
+   <p class="mu">Tocca una casella per cambiare il turno di quel giorno.</p>
+   <div class="wrap"><table><tr><th>Operatore${days.map((d,i)=>`<th>${GS[i]} ${d.slice(8)}`).join('')}</tr>${OPS.map(p=>`<tr><td><b>${esc(p.nome)}</b>${days.map(d=>{const x=TU.find(y=>y.operatore_id===p.id&&y.giorno===d);return `<td onclick="editTurno('${p.id}','${d}')" style="cursor:pointer;white-space:nowrap">${x?(x.riposo?'<span class="pill p-no">Riposo</span>':x.inizio.slice(0,5)+'–'+x.fine.slice(0,5)):'<span class="mu">+</span>'}`}).join('')}`).join('')}</table></div></div>`}
+async function applicaTurni(){const ops=[...document.querySelectorAll('.to:checked')].map(c=>c.value),gd=[...document.querySelectorAll('.tg:checked')].map(c=>+c.value),w=+$('#tw').value,st=lun($('#ti').value),ini=$('#ts').value,fin=$('#te').value,rip=$('#tr').checked;
+  if(!ops.length)return toast('Seleziona almeno un operatore',1);if(!gd.length&&!rip)return toast('Seleziona almeno un giorno',1);
+  const rows=[];for(const op of ops)for(let i=0;i<w*7;i++){const g=addD(st,i);if(gd.includes(i%7))rows.push({operatore_id:op,giorno:g,inizio:ini,fine:fin,riposo:false});else if(rip)rows.push({operatore_id:op,giorno:g,inizio:null,fine:null,riposo:true})}
+  if(!confirm('Applicare '+rows.length+' turni per '+w+' settimane dal '+formatD(st)+'? Quelli già presenti verranno sostituiti.'))return;
+  for(let i=0;i<rows.length;i+=500){const{error}=await SB.from('lt_turni').upsert(rows.slice(i,i+500),{onConflict:'operatore_id,giorno'});if(error)return toast(error.message,1)}
+  wk=st;toast('Turni inseriti');go('turni')}
+function editTurno(op,g){const x=TU.find(y=>y.operatore_id===op&&y.giorno===g),p=OPS.find(o=>o.id===op);
+  $('#dlg').innerHTML=`<h2>Turno del ${formatD(g)}</h2><div class="mu">${esc(p?p.nome:'')}</div><div class="row"><input id="xs" type="time" value="${x&&x.inizio?x.inizio.slice(0,5):'08:00'}"><input id="xe" type="time" value="${x&&x.fine?x.fine.slice(0,5):'16:00'}"></div>
+  <div class="row"><button class="s" onclick="saveTurno('${op}','${g}',1)">Riposo</button><button onclick="saveTurno('${op}','${g}',0)">Salva turno</button></div>
+  <div class="row"><button class="er" onclick="delTurno('${op}','${g}')">Elimina</button><button class="s" onclick="$('#dlg').close()">Chiudi</button></div>`;$('#dlg').showModal()}
+async function saveTurno(op,g,r){const{error}=await SB.from('lt_turni').upsert({operatore_id:op,giorno:g,inizio:r?null:$('#xs').value,fine:r?null:$('#xe').value,riposo:!!r},{onConflict:'operatore_id,giorno'});if(error)return toast(error.message,1);$('#dlg').close();go('turni')}
+async function delTurno(op,g){const{error}=await SB.from('lt_turni').delete().eq('operatore_id',op).eq('giorno',g);if(error)return toast(error.message,1);$('#dlg').close();go('turni')}
 
 /* ---------- ROUTER: / = operatore, #admin = admin, #kiosk = terminale QR ---------- */
 function route(){clearInterval(tm);stopScan();const h=location.hash.slice(1);h==='admin'?adminView():h==='kiosk'?kioskView():opView()}
