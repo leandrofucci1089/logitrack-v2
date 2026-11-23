@@ -172,20 +172,31 @@ function editT(id){const x=EV.find(y=>y.id===id);if(!x)return;const p=OPS.find(o
 async function saveE(id){const{error}=await SB.from('lt_timbrature').update({tipo:$('#et').value,orario:new Date($('#ew').value).toISOString(),modificata_da:ad}).eq('id',id);if(error)return toast(error.message,1);$('#dlg').close();toast('Timbratura modificata');go('oggi')}
 const GO=[['off:50','Solo QR'],['sede:50','GPS in sede 50 m'],['sede:100','GPS in sede 100 m'],['ovunque:50','GPS ovunque (autisti)']];
 const gpsOpt=v=>GO.map(([x,l])=>`<option value="${x}" ${x===v?'selected':''}>${l}</option>`).join('');
-async function tPers(){const{data}=await SB.from('lt_operatori').select('*').order('nome');
+async function tPers(){const{data}=await SB.from('lt_operatori').select('*').order('nome');OPS=data||[];
   return `<div class="card"><h2>Nuovo operatore</h2><div class="row"><input id="nn" placeholder="Nome e cognome"><input id="nc" placeholder="Codice (es. LO00021)"><input id="np" placeholder="PIN (4-8 cifre)" inputmode="numeric"></div>
   <div class="row"><input id="ns" value="CANDIDA"><select id="ng">${gpsOpt('off:50')}</select><button onclick="newOp()">Aggiungi</button></div></div>
   <div class="card"><div class="wrap"><table><tr><th>Operatore<th>Sede<th>GPS<th>Netto €<th>Stato<th></tr>
-  ${(data||[]).map(o=>`<tr><td><b>${esc(o.nome)}</b><div class="mu">${esc(o.codice)}</div><td>${esc(o.sede)}
+  ${OPS.map(o=>`<tr><td><b>${esc(o.nome)}</b><div class="mu">${esc(o.codice)}</div><td>${esc(o.sede)}
   <td><select onchange="setGps('${o.id}',this.value)" style="margin:0;padding:6px">${gpsOpt(o.gps_modo==='sede'?'sede:'+o.gps_raggio:o.gps_modo+':50')}</select>
   <td><input type="number" step="0.01" min="0" value="${o.netto??''}" placeholder="0,00" onchange="setNetto('${o.id}',this.value)" style="margin:0;padding:6px;width:100px">
   <td><button class="sm ${o.attivo?'s':'er'}" onclick="upd('${o.id}',{attivo:${!o.attivo}})">${o.attivo?'Attivo':'Disattivo'}</button>
-  <td><button class="sm s" onclick="resetPin('${o.id}')">Nuovo PIN</button>`).join('')}</table></div></div>`}
+  <td style="white-space:nowrap"><button class="sm s" onclick="editOp('${o.id}')">Modifica</button> <button class="sm s" onclick="resetPin('${o.id}')">Nuovo PIN</button>`).join('')}</table></div></div>`}
 async function newOp(){try{await rpc('lt_crea_operatore',{p_codice:$('#nc').value,p_nome:$('#nn').value,p_pin:$('#np').value,p_sede:$('#ns').value,p_modo:$('#ng').value.split(':')[0],p_raggio:+$('#ng').value.split(':')[1]});toast('Operatore creato');go('pers')}catch(e){}}
 async function upd(id,v){const{error}=await SB.from('lt_operatori').update(v).eq('id',id);if(error)return toast(error.message,1);go('pers')}
 async function setGps(id,v){const[m,r]=v.split(':');upd(id,{gps_modo:m,gps_raggio:+r,gps:m!=='off'})}
 async function setNetto(id,v){const{error}=await SB.from('lt_operatori').update({netto:v===''?null:+v}).eq('id',id);if(error)return toast(error.message,1);toast('Netto salvato')}
 async function resetPin(id){const p=prompt('Nuovo PIN (4-8 cifre):');if(!p)return;try{await rpc('lt_reset_pin',{p_id:id,p_pin:p});toast('PIN aggiornato')}catch(e){}}
+function editOp(id){const o=OPS.find(x=>x.id===id);if(!o)return;
+  $('#dlg').innerHTML=`<h2>Modifica operatore</h2>
+  <label class="mu">Nome e cognome</label><input id="eon" value="${esc(o.nome)}">
+  <label class="mu">Codice</label><input id="eoc" value="${esc(o.codice)}" autocapitalize="characters">
+  <label class="mu">Sede</label><input id="eos" value="${esc(o.sede)}">
+  <div class="row"><button class="s" onclick="$('#dlg').close()">Annulla</button><button onclick="saveOp('${id}')">Salva</button></div>`;
+  $('#dlg').showModal()}
+async function saveOp(id){const nome=$('#eon').value.trim(),codice=$('#eoc').value.trim(),sede=$('#eos').value.trim();
+  if(!nome||!codice||!sede)return toast('Compila tutti i campi',1);
+  const{error}=await SB.from('lt_operatori').update({nome,codice,sede}).eq('id',id);
+  if(error)return toast(error.message,1);$('#dlg').close();toast('Operatore aggiornato');go('pers')}
 async function tPerm(){const{data}=await SB.from('lt_permessi').select('*,lt_operatori(nome)').order('dal',{ascending:false}).limit(100);
   return `<div class="card"><h2>Richieste</h2>${(data||[]).length?data.map(p=>`<div class="row" style="align-items:center;padding:10px 0;border-bottom:1px solid var(--line)">
   <div><b>${esc(p.lt_operatori?.nome)}</b> · ${esc(p.tipologia)}<div class="mu">${dt(p.dal)} → ${dt(p.al)}${p.note?' · '+esc(p.note):''}</div></div>
