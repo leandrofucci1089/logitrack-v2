@@ -58,10 +58,23 @@ const hm=d=>new Date(d).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-dig
 const dt=d=>new Date(d).toLocaleString('it-IT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
 const gg=g=>new Date(g+'T12:00').toLocaleDateString('it-IT',{weekday:'short',day:'2-digit',month:'2-digit'});const formatD=d=>d.split('-').reverse().join('/');
 const dkey=d=>{d=new Date(d);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
-let tok=localStorage.getItem('lt_tok'),scan=null,tm=null,ad='',tab='oggi',day=dkey(new Date()),mon=dkey(new Date()).slice(0,7),OPS=[],ROWS=[],CFG=null,EV=[],LAST=null,shown='',lastAl=0,AC=null;
+let tok=localStorage.getItem('lt_tok'),scan=null,tm=null,ad='',tab='oggi',day=dkey(new Date()),mon=dkey(new Date()).slice(0,7),OPS=[],ROWS=[],CFG=null,EV=[],LAST=null,shown='',lastAl=0,AC=null,nIds='',PEND=null;
 function toast(m,e){const t=$('#toast');t.textContent=m;t.className=e?'e':'';t.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>t.style.display='none',4500)}
 async function rpc(fn,a){const{data,error}=await SB.rpc(fn,a);if(error){toast(error.message,1);throw error}return data}
-function beep(n=1){try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();for(let i=0;i<n;i++){const o=AC.createOscillator(),g=AC.createGain(),t=AC.currentTime+i*.28;o.frequency.value=i%2?1318:1046;g.gain.setValueAtTime(.25,t);g.gain.exponentialRampToValueAtTime(.001,t+.2);o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+.2)}}catch(e){}}
+function wav(f){const r=22050,d=[],L=r*.16;for(const q of f){for(let i=0;i<L;i++)d.push(Math.sin(2*Math.PI*q*i/r)*Math.min(1,i/200,(L-i)/400)*26000);for(let i=0;i<r*.1;i++)d.push(0)}
+  const b=new DataView(new ArrayBuffer(44+d.length*2)),w=(o,t)=>[...t].forEach((c,i)=>b.setUint8(o+i,c.charCodeAt(0)));
+  w(0,'RIFF');b.setUint32(4,36+d.length*2,true);w(8,'WAVEfmt ');b.setUint32(16,16,true);b.setUint16(20,1,true);b.setUint16(22,1,true);b.setUint32(24,r,true);b.setUint32(28,r*2,true);b.setUint16(32,2,true);b.setUint16(34,16,true);w(36,'data');b.setUint32(40,d.length*2,true);d.forEach((v,i)=>b.setInt16(44+i*2,v,true));
+  return URL.createObjectURL(new Blob([b],{type:'audio/wav'}))}
+let SND=null;
+function snd(){if(!SND){SND={2:new Audio(wav([1046,1318])),3:new Audio(wav([1046,1318,1046]))};Object.values(SND).forEach(a=>a.preload='auto')}return SND}
+function tone(n){try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();for(let i=0;i<n;i++){const o=AC.createOscillator(),g=AC.createGain(),t=AC.currentTime+i*.28;o.frequency.value=i%2?1318:1046;g.gain.setValueAtTime(.3,t);g.gain.exponentialRampToValueAtTime(.001,t+.2);o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+.2)}}catch(e){}}
+function unlockAudio(){try{navigator.audioSession&&(navigator.audioSession.type='playback')}catch(e){}
+  try{Object.values(snd()).forEach(a=>{a.muted=true;a.play().then(()=>{a.pause();a.currentTime=0;a.muted=false}).catch(()=>{a.muted=false})})}catch(e){}
+  try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();AC.resume()}catch(e){}}
+['click','touchend'].forEach(ev=>document.addEventListener(ev,unlockAudio,{once:true,passive:true}));
+function beep(n=1){if(!n)return unlockAudio();const a=snd()[n>=3?3:2];a.muted=false;a.currentTime=0;a.play().catch(()=>tone(n))}
+async function leggiNotifiche(){const st=await rpc('lt_leggi',{p_tok:tok});opView(st)}
+setInterval(async()=>{if(!tok||scan||document.hidden)return;try{const{data,error}=await SB.rpc('lt_stato',{p_tok:tok});if(error||!data)return;const ids=(data.notifiche||[]).map(n=>n.id).join();if(ids!==nIds){if(ids){beep(2);navigator.vibrate?.(150)}opView(data)}}catch(e){}},30000);
 function alertMsg(st){const td=st.storico.filter(x=>dkey(x.orario)===dkey(new Date())).reverse(),l=td[td.length-1];if(!l)return'';const n=new Date(),m=n.getHours()*60+n.getMinutes();
   if((l.tipo==='ENTRATA'||l.tipo==='FINE_PAUSA')&&!td.some(x=>x.tipo==='INIZIO_PAUSA')&&m>=810)return'Sono passate le 13:30: ricordati di timbrare l\'uscita pausa.';
   if(l.tipo==='INIZIO_PAUSA'&&(n-new Date(l.orario))/6e4>=60)return'La pausa è terminata (60 minuti): non dimenticare di timbrare il rientro pausa!';return''}
@@ -76,15 +89,15 @@ async function opView(st){
     <label class="mu">PIN</label><input id="p" type="password" inputmode="numeric" autocomplete="current-password">
     <button onclick="opLogin()">Accedi</button></div>`;return}
   try{st=st||await rpc('lt_stato',{p_tok:tok})}catch(e){if(/Sessione/.test(e.message)){tok=null;localStorage.removeItem('lt_tok');opView()}return}
-  LAST=st;const al=alertMsg(st);shown=al;const ult=st.storico[0]?st.storico[0].tipo:'';
+  LAST=st;const al=alertMsg(st);shown=al;nIds=(st.notifiche||[]).map(n=>n.id).join();const ult=st.storico[0]?st.storico[0].tipo:'';
   const [lab,pc]=ult==='ENTRATA'||ult==='FINE_PAUSA'?['In servizio','p-ok']:ult==='INIZIO_PAUSA'?['In pausa','p-wa']:['Fuori servizio','p-no'];
   $('#who').textContent=st.nome;
-  app.innerHTML=`<div style="max-width:560px;margin:0 auto">${al?`<div class="card" style="border-top-color:var(--er);background:#fff1f2"><b style="color:var(--er)">⏰ ${esc(al)}</b></div>`:''}
+  app.innerHTML=`<div style="max-width:560px;margin:0 auto">${al?`<div class="card" style="border-top-color:var(--er);background:#fff1f2"><b style="color:var(--er)">⏰ ${esc(al)}</b></div>`:''}${(st.notifiche||[]).length?`<div class="card" style="border-top-color:#0ea5e9;background:#f0f9ff"><b style="color:#0369a1">🔔 Novità</b>${st.notifiche.map(n=>`<div style="margin:8px 0">${esc(n.testo)}<div class="mu">${dt(n.creata)}</div></div>`).join('')}<button class="s sm" onclick="leggiNotifiche()">Ho letto</button></div>`:''}
   <div class="card"><div class="row" style="align-items:center"><div><div class="mu">Ciao</div><h2 style="margin:0">${esc(st.nome)}</h2></div>
     <div style="text-align:right"><span class="pill ${pc}">${lab}</span></div></div>
     ${Object.keys(T).map(t=>{const on=NEXT[ult].includes(t);return `<div class="row"><button class="${COL[t]}" ${on?'':'disabled'} onclick="qr('${t}')">${T[t]} · QR</button>${st.gps?`<button class="s" ${on?'':'disabled'} onclick="gps('${t}')">GPS</button>`:''}</div>`}).join('')}
     <div id="scanbox" style="display:none"><div id="scanlab" style="font-weight:700;margin-bottom:8px"></div><div id="reader"></div><button class="s" style="margin-top:8px" onclick="stopScan();$('#scanbox').style.display='none'">Annulla</button></div>
-    <button class="s sm" style="margin-top:6px" onclick="opLogout()">Esci</button></div>
+    <div class="row" style="margin:6px 0 0"><button class="s sm" onclick="beep(2)">🔊 Prova suono</button><button class="s sm" onclick="opLogout()">Esci</button></div></div>
   <div class="card"><h2>Oggi</h2>${(()=>{const o=st.storico.filter(x=>dkey(x.orario)===dkey(new Date())).reverse();return o.length?o.map(x=>`<div class="row" style="margin:0;padding:8px 0;border-bottom:1px solid var(--line)"><b style="color:var(--${COL[x.tipo]})">${T[x.tipo]}</b><b style="text-align:right">${hm(x.orario)}</b></div>`).join(''):'<p class="mu">Nessuna timbratura oggi.</p>'})()}</div>
   <div class="card"><h2>I miei turni</h2>${st.turni&&st.turni.length?st.turni.map(x=>`<div class="row" style="margin:0;padding:8px 0;border-bottom:1px solid var(--line)"><b${x.giorno===dkey(new Date())?' style="color:var(--ac)"':''}>${gg(x.giorno)}</b><span style="text-align:right">${x.riposo?'<span class="pill p-no">Riposo</span>':x.inizio.slice(0,5)+' – '+x.fine.slice(0,5)}</span></div>`).join(''):'<p class="mu">Nessun turno inserito.</p>'}</div>
   <div class="card"><h2>Ultime timbrature</h2>${st.storico.length?st.storico.map(x=>`<div class="row" style="margin:0;padding:8px 0;border-bottom:1px solid var(--line)"><b>${T[x.tipo]}</b><span class="mu" style="text-align:right">${dt(x.orario)} · ${x.metodo}</span></div>`).join(''):'<p class="mu">Nessuna timbratura.</p>'}</div>
@@ -121,16 +134,16 @@ function admLoginCard(){app.innerHTML=`<div class="card" style="max-width:380px;
   <input id="ae" type="email" placeholder="Email" autocomplete="username"><input id="ap" type="password" placeholder="Password" autocomplete="current-password">
   <button onclick="admLogin()">Accedi</button></div>`}
 async function admLogin(){const{error}=await SB.auth.signInWithPassword({email:$('#ae').value.trim(),password:$('#ap').value});if(error)return toast('Credenziali non valide',1);route()}
-async function admLogout(){await SB.auth.signOut();route()}
+async function admLogout(){await SB.auth.signOut();ad='';PEND=null;route()}
 async function adminView(){
   const{data}=await SB.auth.getSession();if(!data.session)return admLoginCard();
   ad=data.session.user.email;$('#who').textContent=ad;
   const{data:c}=await SB.from('lt_config').select('*').maybeSingle();
   if(!c){app.innerHTML=`<div class="card"><h2>Account non abilitato</h2><p class="mu">${esc(ad)} non è nella tabella lt_admins. Esegui schema.sql con la tua email.</p><button class="s" onclick="admLogout()">Esci</button></div>`;return}
-  CFG=c;app.innerHTML=`<div class="tabs" id="tabs"></div><div id="tc"></div>`;go(tab)}
-async function go(t){tab=t;const N={oggi:'Oggi',turni:'Turni',pers:'Operatori',perm:'Permessi',rep:'Report',sede:'Sede GPS'};
+  CFG=c;app.innerHTML=`<div class="tabs" id="tabs"></div><div id="pb"></div><div id="tc"></div>`;go(tab)}
+async function go(t){tab=t;const N={oggi:'Oggi',turni:'Turni',pers:'Operatori',perm:'Permessi<span id="pc"></span>',rep:'Report',sede:'Sede GPS'};
   $('#tabs').innerHTML=Object.entries(N).map(([k,v])=>`<button class="${k===t?'on':''}" onclick="go('${k}')">${v}</button>`).join('')+`<button onclick="location.hash='kiosk'">Terminale QR</button><button onclick="admLogout()">Esci</button>`;
-  $('#tc').innerHTML='<p class="mu">Carico…</p>';$('#tc').innerHTML=await({oggi:tOggi,turni:tTurni,pers:tPers,perm:tPerm,rep:tRep,sede:tSede})[t]()}
+  drawPend();pendRefresh();$('#tc').innerHTML='<p class="mu">Carico…</p>';$('#tc').innerHTML=await({oggi:tOggi,turni:tTurni,pers:tPers,perm:tPerm,rep:tRep,sede:tSede})[t]()}
 async function tOggi(){
   const a=new Date(day+'T00:00'),b=new Date(a.getTime()+864e5);
   const[o,e,pm,tu]=await Promise.all([SB.from('lt_operatori').select('id,codice,nome').eq('attivo',true).order('nome'),SB.from('lt_timbrature').select('*').gte('orario',a.toISOString()).lt('orario',b.toISOString()).order('orario'),SB.from('lt_permessi').select('operatore_id,tipologia').eq('stato','Approvata').lt('dal',b.toISOString()).gt('al',a.toISOString()),SB.from('lt_turni').select('*').eq('giorno',day)]);
@@ -197,6 +210,11 @@ async function tSede(){return `<div class="card"><h2>Sede per timbratura GPS</h2
 function detect(){navigator.geolocation.getCurrentPosition(p=>{$('#la1').value=p.coords.latitude.toFixed(6);$('#lo1').value=p.coords.longitude.toFixed(6)},()=>toast('Posizione non disponibile',1),{enableHighAccuracy:true})}
 async function saveSede(){const la=parseFloat($('#la1').value),lo=parseFloat($('#lo1').value),ra=CFG.raggio;if(isNaN(la)||isNaN(lo))return toast('Coordinate non valide',1);
   const{error}=await SB.from('lt_config').update({hq_lat:la,hq_lng:lo,raggio:ra}).eq('id',1);if(error)return toast(error.message,1);CFG={...CFG,hq_lat:la,hq_lng:lo,raggio:ra};toast('Sede salvata')}
+
+/* ---------- AVVISO PERMESSI DA GESTIRE ---------- */
+function drawPend(){const c=$('#pc'),b=$('#pb');if(c)c.textContent=PEND?' ('+PEND+')':'';if(b)b.innerHTML=PEND&&tab!=='perm'?`<div class="card" style="border-top-color:var(--wa);background:#fffbeb;cursor:pointer" onclick="go('perm')"><b style="color:#b45309">🔔 Permessi: ${PEND} da gestire</b></div>`:''}
+async function pendRefresh(){if(!ad)return;const{count,error}=await SB.from('lt_permessi').select('id',{count:'exact',head:true}).eq('stato','In attesa');if(error)return;const old=PEND;PEND=count||0;if(old!==null&&PEND>old){beep(2);toast('Nuova richiesta di permesso: '+PEND+' da gestire')}drawPend()}
+setInterval(()=>{if(ad&&location.hash==='#admin')pendRefresh()},45000);
 
 /* ---------- TURNI ---------- */
 const GS=['Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
