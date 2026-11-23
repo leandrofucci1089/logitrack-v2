@@ -141,7 +141,7 @@ async function adminView(){
   const{data:c}=await SB.from('lt_config').select('*').maybeSingle();
   if(!c){app.innerHTML=`<div class="card"><h2>Account non abilitato</h2><p class="mu">${esc(ad)} non è nella tabella lt_admins. Esegui schema.sql con la tua email.</p><button class="s" onclick="admLogout()">Esci</button></div>`;return}
   CFG=c;app.innerHTML=`<div class="tabs" id="tabs"></div><div id="pb"></div><div id="tc"></div>`;go(tab)}
-async function go(t){tab=t;const N={oggi:'Oggi',turni:'Turni',pers:'Operatori',perm:'Permessi<span id="pc"></span>',rep:'Report',sede:'Sede GPS'};
+async function go(t){tab=t;if(t!=='rep')RC.m=null;const N={oggi:'Oggi',turni:'Turni',pers:'Operatori',perm:'Permessi<span id="pc"></span>',rep:'Report',sede:'Sede GPS'};
   $('#tabs').innerHTML=Object.entries(N).map(([k,v])=>`<button class="${k===t?'on':''}" onclick="go('${k}')">${v}</button>`).join('')+`<button onclick="location.hash='kiosk'">Terminale QR</button><button onclick="admLogout()">Esci</button>`;
   drawPend();pendRefresh();$('#tc').innerHTML='<p class="mu">Carico…</p>';$('#tc').innerHTML=await({oggi:tOggi,turni:tTurni,pers:tPers,perm:tPerm,rep:tRep,sede:tSede})[t]()}
 async function tOggi(){
@@ -175,14 +175,16 @@ const gpsOpt=v=>GO.map(([x,l])=>`<option value="${x}" ${x===v?'selected':''}>${l
 async function tPers(){const{data}=await SB.from('lt_operatori').select('*').order('nome');
   return `<div class="card"><h2>Nuovo operatore</h2><div class="row"><input id="nn" placeholder="Nome e cognome"><input id="nc" placeholder="Codice (es. LO00021)"><input id="np" placeholder="PIN (4-8 cifre)" inputmode="numeric"></div>
   <div class="row"><input id="ns" value="CANDIDA"><select id="ng">${gpsOpt('off:50')}</select><button onclick="newOp()">Aggiungi</button></div></div>
-  <div class="card"><div class="wrap"><table><tr><th>Operatore<th>Sede<th>GPS<th>Stato<th></tr>
+  <div class="card"><div class="wrap"><table><tr><th>Operatore<th>Sede<th>GPS<th>Netto €<th>Stato<th></tr>
   ${(data||[]).map(o=>`<tr><td><b>${esc(o.nome)}</b><div class="mu">${esc(o.codice)}</div><td>${esc(o.sede)}
   <td><select onchange="setGps('${o.id}',this.value)" style="margin:0;padding:6px">${gpsOpt(o.gps_modo==='sede'?'sede:'+o.gps_raggio:o.gps_modo+':50')}</select>
+  <td><input type="number" step="0.01" min="0" value="${o.netto??''}" placeholder="0,00" onchange="setNetto('${o.id}',this.value)" style="margin:0;padding:6px;width:100px">
   <td><button class="sm ${o.attivo?'s':'er'}" onclick="upd('${o.id}',{attivo:${!o.attivo}})">${o.attivo?'Attivo':'Disattivo'}</button>
   <td><button class="sm s" onclick="resetPin('${o.id}')">Nuovo PIN</button>`).join('')}</table></div></div>`}
 async function newOp(){try{await rpc('lt_crea_operatore',{p_codice:$('#nc').value,p_nome:$('#nn').value,p_pin:$('#np').value,p_sede:$('#ns').value,p_modo:$('#ng').value.split(':')[0],p_raggio:+$('#ng').value.split(':')[1]});toast('Operatore creato');go('pers')}catch(e){}}
 async function upd(id,v){const{error}=await SB.from('lt_operatori').update(v).eq('id',id);if(error)return toast(error.message,1);go('pers')}
 async function setGps(id,v){const[m,r]=v.split(':');upd(id,{gps_modo:m,gps_raggio:+r,gps:m!=='off'})}
+async function setNetto(id,v){const{error}=await SB.from('lt_operatori').update({netto:v===''?null:+v}).eq('id',id);if(error)return toast(error.message,1);toast('Netto salvato')}
 async function resetPin(id){const p=prompt('Nuovo PIN (4-8 cifre):');if(!p)return;try{await rpc('lt_reset_pin',{p_id:id,p_pin:p});toast('PIN aggiornato')}catch(e){}}
 async function tPerm(){const{data}=await SB.from('lt_permessi').select('*,lt_operatori(nome)').order('dal',{ascending:false}).limit(100);
   return `<div class="card"><h2>Richieste</h2>${(data||[]).length?data.map(p=>`<div class="row" style="align-items:center;padding:10px 0;border-bottom:1px solid var(--line)">
@@ -190,20 +192,36 @@ async function tPerm(){const{data}=await SB.from('lt_permessi').select('*,lt_ope
   <div style="text-align:right">${p.stato==='In attesa'?`<button class="sm ok" onclick="setP('${p.id}','Approvata')">Approva</button> <button class="sm er" onclick="setP('${p.id}','Rifiutata')">Rifiuta</button>`:`<span class="pill ${p.stato==='Approvata'?'p-ok':'p-er'}">${p.stato}</span>`}</div></div>`).join(''):'<p class="mu">Nessuna richiesta.</p>'}</div>`}
 async function setP(id,s){const{error}=await SB.from('lt_permessi').update({stato:s}).eq('id',id);if(error)return toast(error.message,1);go('perm')}
 async function fetchAll(q){let r=[],i=0;for(;;){const{data}=await q().range(i,i+999);r=r.concat(data||[]);if(!data||data.length<1000)return r;i+=1000}}
-function calc(ev){const days={},pz=new Set();let st=null;
+function calc(ev){const days={},pz=new Set(),en={},us={};let st=null;
   for(const e of ev){const t=new Date(e.orario);if(e.tipo==='INIZIO_PAUSA'||e.tipo==='FINE_PAUSA')pz.add(dkey(st||t));
-    if(e.tipo==='ENTRATA'||e.tipo==='FINE_PAUSA')st=t;else if(st){const h=(t-st)/36e5,k=dkey(st);if(h>0&&h<20)days[k]=(days[k]||0)+h;st=null}}
-  let o=0,s=0,g=0;for(const k in days){let h=days[k];if(!pz.has(k)&&h>6)h-=1;const w=new Date(k+'T12:00').getDay();g++;if(w===0||w===6)s+=h;else{o+=Math.min(8,h);s+=Math.max(0,h-8)}}
-  return{g,o,s}}
+    if(e.tipo==='ENTRATA'){const k=dkey(t);if(!en[k])en[k]=t}
+    if(e.tipo==='ENTRATA'||e.tipo==='FINE_PAUSA')st=t;else if(st){const h=(t-st)/36e5,k=dkey(st);if(h>0&&h<20)days[k]=(days[k]||0)+h;if(e.tipo==='USCITA')us[k]=t;st=null}}
+  let o=0,s=0;const det=Object.keys(days).sort().map(k=>{let h=days[k],d=0;if(!pz.has(k)&&h>10){h-=1;d=1}
+    const w=new Date(k+'T12:00').getDay(),we=w===0||w===6,ord=we?0:Math.min(8,h),str=we?h:Math.max(0,h-8);o+=ord;s+=str;return{k,w,en:en[k],us:us[k],pz:pz.has(k),d,h,ord,str}});
+  return{g:det.length,o,s,det}}
+const gmAuto=m=>{const[y,mo]=m.split('-').map(Number),n=new Date(y,mo,0).getDate();let c=0;for(let d=1;d<=n;d++){const w=new Date(y,mo-1,d).getDay();if(w>0&&w<6)c++}return c};
+let RC={m:null,ops:[],ev:[]},RSEL=null,GM=null,RROWS=[];
+const r2=n=>Math.round(n*100)/100,eur=n=>n==null?'–':'€ '+n.toFixed(2).replace('.',','),fh=n=>n.toFixed(2).replace('.',',');
 async function tRep(){
-  const a=new Date(mon+'-01T00:00'),b=new Date(a.getFullYear(),a.getMonth()+1,1);
-  const[o,ev]=await Promise.all([SB.from('lt_operatori').select('id,codice,nome').order('nome'),fetchAll(()=>SB.from('lt_timbrature').select('operatore_id,tipo,orario').gte('orario',a.toISOString()).lt('orario',b.toISOString()).order('orario'))]);
-  ROWS=(o.data||[]).map(p=>({p,...calc(ev.filter(x=>x.operatore_id===p.id))}));const f=n=>n.toFixed(2);
-  return `<div class="card"><div class="row"><input type="month" value="${mon}" onchange="mon=this.value;go('rep')"><button class="ok" onclick="csv()">Esporta CSV (Excel)</button></div>
-  <p class="mu">Lun-Ven: fino a 8h ordinarie, oltre = straordinario. Sab/Dom: tutto straordinario. Se manca la pausa timbrata e si lavora più di 6h, viene scalata 1h.</p>
-  <div class="wrap"><table><tr><th>Operatore<th>Giorni<th>Ordinarie<th>Straord.<th>Totale</tr>${ROWS.map(r=>`<tr><td><b>${esc(r.p.nome)}</b><div class="mu">${esc(r.p.codice)}</div><td>${r.g}<td>${f(r.o)} h<td>${f(r.s)} h<td><b>${f(r.o+r.s)} h</b>`).join('')}</table></div></div>`}
-function csv(){const f=n=>n.toFixed(2).replace('.',',');const L=['Codice;Operatore;Giorni;Ore ordinarie;Ore straordinario;Totale'].concat(ROWS.map(r=>[r.p.codice,r.p.nome,r.g,f(r.o),f(r.s),f(r.o+r.s)].join(';')));
-  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+L.join('\n')],{type:'text/csv'}));a.download='presenze_'+mon+'.csv';a.click()}
+  if(RC.m!==mon){const a=new Date(mon+'-01T00:00'),b=new Date(a.getFullYear(),a.getMonth()+1,1);
+    const[o,ev]=await Promise.all([SB.from('lt_operatori').select('id,codice,nome,netto').order('nome'),fetchAll(()=>SB.from('lt_timbrature').select('operatore_id,tipo,orario').gte('orario',a.toISOString()).lt('orario',b.toISOString()).order('orario'))]);
+    RC={m:mon,ops:o.data||[],ev}}
+  const gm=GM||gmAuto(mon),on=p=>!RSEL||RSEL.includes(p.id);
+  RROWS=RC.ops.filter(on).map(p=>{const c=calc(RC.ev.filter(x=>x.operatore_id===p.id)),tar=p.netto!=null?p.netto/gm/8:null;return{p,...c,tar,imp:tar!=null?r2(tar*c.s):null}});
+  const tot=RROWS.reduce((a,r)=>a+(r.imp||0),0);
+  return `<div class="card"><h2>Report presenze e straordinari</h2>
+  <div class="row"><div><label class="mu">Mese</label><input type="month" value="${mon}" onchange="mon=this.value;go('rep')"></div><div><label class="mu">Giorni lavorativi del mese</label><input type="number" min="1" max="31" value="${gm}" onchange="GM=+this.value||null;go('rep')"></div></div>
+  <label class="mu" style="display:block;margin:6px 0"><input type="checkbox" ${!RSEL?'checked':''} onchange="RSEL=this.checked?null:[];go('rep')" style="width:auto;margin:0 6px 0 0"><b>Tutti gli operatori</b></label>
+  <div class="row" style="gap:6px 14px">${RC.ops.map(p=>`<label class="mu" style="flex:0 0 auto;min-width:0"><input type="checkbox" ${on(p)?'checked':''} onchange="togR('${p.id}',this.checked)" style="width:auto;margin:0 5px 0 0">${esc(p.nome)}</label>`).join('')}</div>
+  <div class="row"><button class="ok" onclick="csvRiep()">Esporta riepilogo</button><button class="s" onclick="csvDett()">Esporta dettaglio giornaliero</button></div>
+  <p class="mu">Lun-Ven: 8 ore ordinarie, il resto è straordinario; sabato e domenica tutto straordinario. Senza pausa timbrata si scala 1 ora solo se l'impegno supera 10 ore. Straordinario = netto ÷ giorni lavorativi ÷ 8 × ore di straordinario. Il netto si imposta nella scheda Operatori.</p>
+  <div class="wrap"><table><tr><th>Operatore<th>Giorni<th>Ordinarie<th>Straord.<th>Netto<th>€/ora<th>Importo straord.</tr>${RROWS.map(r=>`<tr><td><b>${esc(r.p.nome)}</b><div class="mu">${esc(r.p.codice)}</div><td>${r.g}<td>${fh(r.o)} h<td><b>${fh(r.s)} h</b><td>${r.p.netto!=null?eur(+r.p.netto):'<span class="pill p-er">manca</span>'}<td>${r.tar!=null?eur(r.tar):'–'}<td><b>${eur(r.imp)}</b>`).join('')}</table></div>
+  <p style="text-align:right"><b>Totale straordinari: ${eur(tot)}</b></p></div>`}
+function togR(id,on){let a=RSEL||RC.ops.map(p=>p.id);a=on?[...new Set([...a,id])]:a.filter(x=>x!==id);RSEL=a.length===RC.ops.length?null:a;go('rep')}
+function dl(nome,L){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+L.join('\n')],{type:'text/csv'}));a.download=nome;a.click()}
+function csvRiep(){dl('riepilogo_'+mon+'.csv',['Codice;Operatore;Giorni lavorati;Ore ordinarie;Ore straordinario;Netto;Euro per ora;Importo straordinario'].concat(RROWS.map(r=>[r.p.codice,r.p.nome,r.g,fh(r.o),fh(r.s),r.p.netto!=null?fh(+r.p.netto):'',r.tar!=null?fh(r.tar):'',r.imp!=null?fh(r.imp):''].join(';'))))}
+function csvDett(){const N=['Dom','Lun','Mar','Mer','Gio','Ven','Sab'],L=['Data;Giorno;Codice;Operatore;Entrata;Uscita;Pausa timbrata;Pausa scalata (h);Ore nette;Ordinarie;Straordinario'];
+  RROWS.forEach(r=>r.det.forEach(d=>L.push([formatD(d.k),N[d.w],r.p.codice,r.p.nome,d.en?hm(d.en):'',d.us?hm(d.us):'',d.pz?'sì':'no',d.d,fh(d.h),fh(d.ord),fh(d.str)].join(';'))));dl('dettaglio_'+mon+'.csv',L)}
 async function tSede(){return `<div class="card"><h2>Sede per timbratura GPS</h2><p class="mu">Gli operatori con «GPS in sede» timbrano entro 50 o 100 m da questo punto (lo scegli per ogni operatore); «GPS ovunque» non ha limiti. Il controllo è fatto dal server.</p>
   <div class="row"><input id="la1" placeholder="Latitudine" value="${CFG.hq_lat??''}"><input id="lo1" placeholder="Longitudine" value="${CFG.hq_lng??''}"></div>
   <div class="row"><button class="s" onclick="detect()">Rileva la mia posizione</button><button onclick="saveSede()">Salva</button></div></div>`}
