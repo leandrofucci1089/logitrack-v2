@@ -245,7 +245,7 @@ async function adminView(){
     </div>
   </div>`;
   go(tab)}
-async function go(t){tab=t;closeSide();if(t!=='rep')RC.m=null;
+async function go(t){tab=t;closeSide();if(t!=='rep')RC.key=null;
   const N={oggi:'📊 Oggi',turni:'🗓️ Turni',pers:'👥 Operatori',perm:'📝 Permessi<span id="pc"></span>',rep:'📈 Report',sede:'📍 Sede GPS'};
   $('#tabs').innerHTML=Object.entries(N).map(([k,v])=>`<button class="nav-btn ${k===t?'on':''}" onclick="go('${k}')"><span>${v}</span></button>`).join('');
   $('#tools').innerHTML=`<button class="nav-btn" onclick="location.hash='kiosk'"><span>📷 Terminale QR</span></button><div class="nav-sep"></div><button class="nav-btn" onclick="admLogout()"><span>🚪 Esci</span></button>`;
@@ -496,20 +496,51 @@ function calc(ev, turniOp){
   return {g:det.length,o,s,det};
 }
 
-let RC={m:null,ops:[],ev:[],tu:[]},RFILT='ALL',GM=null,RROWS=[];
+let RC={key:null,ops:[],ev:[],tu:[]},RFILT='ALL',GM=null,RROWS=[];
+let RMODE='month'; // 'month' | 'range'
+let RFROM=mon+'-01', RTO=dkey(new Date());
 const r2=n=>Math.round(n*100)/100,eur=n=>n==null?'–':'€ '+n.toFixed(2).replace('.',','),fh=n=>n.toFixed(2).replace('.',',');
 
+function setRepMode(m){
+  RMODE=m;
+  if(m==='range'){
+    if(!RFROM) RFROM=mon+'-01';
+    if(!RTO) RTO=dkey(new Date());
+    GM=null;
+  }else{
+    GM=null;
+  }
+  go('rep');
+}
+
 async function tRep(){
-  if(RC.m!==mon){
-    const a=new Date(mon+'-01T00:00'),b=new Date(a.getFullYear(),a.getMonth()+1,1);
-    const dStart=mon+'-01';
-    const dEnd=dkey(new Date(a.getFullYear(),a.getMonth()+1,0));
+  let a,b,dStart,dEnd,refMon;
+  if(RMODE==='range'){
+    if(!RFROM) RFROM=mon+'-01';
+    if(!RTO) RTO=RFROM;
+    if(RTO < RFROM) RTO=RFROM;
+    dStart=RFROM;
+    dEnd=RTO;
+    a=new Date(dStart+'T00:00:00');
+    b=new Date(dEnd+'T00:00:00');
+    b.setDate(b.getDate()+1);
+    refMon=dStart.slice(0,7);
+  }else{
+    a=new Date(mon+'-01T00:00:00');
+    b=new Date(a.getFullYear(),a.getMonth()+1,1);
+    dStart=mon+'-01';
+    dEnd=dkey(new Date(a.getFullYear(),a.getMonth()+1,0));
+    refMon=mon;
+  }
+
+  const cacheKey=RMODE+':'+dStart+':'+dEnd;
+  if(RC.key!==cacheKey){
     const[o,ev,tu]=await Promise.all([
       SB.from('lt_operatori').select('id,codice,nome,sede,netto').order('nome'),
       fetchAll(()=>SB.from('lt_timbrature').select('operatore_id,tipo,orario').gte('orario',a.toISOString()).lt('orario',b.toISOString()).order('orario')),
       fetchAll(()=>SB.from('lt_turni').select('operatore_id,giorno,inizio,fine,riposo').gte('giorno',dStart).lte('giorno',dEnd))
     ]);
-    RC={m:mon,ops:o.data||[],ev,tu};
+    RC={key:cacheKey,ops:o.data||[],ev,tu};
   }
   const sedi=[...new Set(RC.ops.map(p=>(p.sede||'').trim()).filter(Boolean))].sort();
   if(RFILT!=='ALL' && !RFILT.startsWith('SEDE:') && !RFILT.startsWith('OP:')) RFILT='ALL';
@@ -521,18 +552,29 @@ async function tRep(){
     return true;
   });
 
-  const gm=GM||gmAuto(mon);
+  const gm=GM||gmAuto(refMon);
   RROWS=filteredOps.map(p=>{
     const c=calc(RC.ev.filter(x=>x.operatore_id===p.id), RC.tu.filter(x=>x.operatore_id===p.id));
     const tar=p.netto!=null?(p.netto/gm)/8:null;
     return {p,...c,tar,imp:tar!=null?r2(tar*c.s):null};
   });
   const tot=RROWS.reduce((a,r)=>a+(r.imp||0),0);
+  const perLabel=RMODE==='range'?`dal ${formatD(dStart)} al ${formatD(dEnd)}`:`mese ${mon}`;
 
   return `<div class="card card-ac"><h2>📈 Report presenze e straordinari</h2>
   <div class="row">
-    <div><label class="mu">Mese</label><input type="month" value="${mon}" onchange="mon=this.value;GM=null;go('rep')"></div>
-    <div><label class="mu">Giorni lavorativi (calendario IT)</label><input type="number" min="1" max="31" value="${gm}" onchange="GM=+this.value||null;go('rep')"></div>
+    <div><label class="mu">Tipo periodo</label>
+      <select onchange="setRepMode(this.value)">
+        <option value="month" ${RMODE==='month'?'selected':''}>📅 Tutto il mese</option>
+        <option value="range" ${RMODE==='range'?'selected':''}>📆 Periodo personalizzato (Dal – Al)</option>
+      </select>
+    </div>
+    ${RMODE==='month'
+      ? `<div><label class="mu">Mese</label><input type="month" value="${mon}" onchange="mon=this.value;GM=null;go('rep')"></div>`
+      : `<div><label class="mu">Dal</label><input type="date" value="${dStart}" onchange="RFROM=this.value;GM=null;go('rep')"></div>
+         <div><label class="mu">Al</label><input type="date" value="${dEnd}" onchange="RTO=this.value;go('rep')"></div>`
+    }
+    <div><label class="mu" title="Giorni lavorativi del mese di riferimento (${refMon}) usati per dividere il netto mensile">Gg lavorativi mese (${refMon})</label><input type="number" min="1" max="31" value="${gm}" onchange="GM=+this.value||null;go('rep')"></div>
     <div><label class="mu">Filtro Operatori / Sede</label>
       <select onchange="RFILT=this.value;go('rep')">
         <option value="ALL" ${RFILT==='ALL'?'selected':''}>👥 Tutti gli operatori (${RC.ops.length})</option>
@@ -541,14 +583,15 @@ async function tRep(){
       </select>
     </div>
   </div>
-  <div class="row"><button class="ok" onclick="csvRiep()">⬇️ Esporta riepilogo</button><button class="s" onclick="csvDett()">⬇️ Esporta dettaglio giornaliero</button></div>
-  <p class="mu">Clicca su un operatore per il dettaglio giornaliero e le causali. <b>Calcolo:</b> Netto ÷ ${gm} gg lavorativi (calendario IT) ÷ 8 h × ore straordinario. Tolleranza <b>±15 min</b> sul turno; anticipi/prolungamenti oltre 15 min maturano straordinario a scatti di <b>30 minuti</b>.</p>
+  <div class="row"><button class="ok" onclick="csvRiep()">⬇️ Esporta riepilogo (${esc(perLabel)})</button><button class="s" onclick="csvDett()">⬇️ Esporta dettaglio giornaliero</button></div>
+  <p class="mu">Periodo visualizzato: <b>${esc(perLabel)}</b>. Clicca su un operatore per il dettaglio giornaliero e le causali. <b>Calcolo paga oraria:</b> Netto ÷ ${gm} gg lavorativi del mese (${refMon}, calendario IT) ÷ 8 h × ore straordinario.</p>
   <div class="wrap"><table><tr><th>Operatore<th>Sede<th>Giorni<th>Ordinarie<th>Straord.<th>Netto<th>€/ora<th>Importo straord.</tr>${RROWS.map(r=>`<tr onclick="repDett('${r.p.id}')" style="cursor:pointer" title="Clicca per dettaglio giornaliero e causali"><td><b style="color:var(--ac2)">${esc(r.p.nome)}</b><div class="mu">${esc(r.p.codice)}</div><td>${esc(r.p.sede||'–')}<td>${r.g}<td>${fh(r.o)} h<td><b>${fh(r.s)} h</b><td>${r.p.netto!=null?eur(+r.p.netto):'<span class="pill p-er">manca</span>'}<td>${r.tar!=null?eur(r.tar):'–'}<td><b>${eur(r.imp)}</b>`).join('')}</table></div>
   <p style="text-align:right"><b>Totale straordinari: ${eur(tot)}</b></p></div>`}
 
 function repDett(id){const r=RROWS.find(x=>x.p.id===id);if(!r)return;const N=['Dom','Lun','Mar','Mer','Gio','Ven','Sab'];
+  const perLabel=RMODE==='range'?`Dal ${formatD(RFROM)} al ${formatD(RTO)}`:`Periodo ${mon}`;
   const dlg=$('#dlg');dlg.style.maxWidth='840px';
-  dlg.innerHTML=`<h2>📋 ${esc(r.p.nome)}</h2><div class="mu" style="margin-bottom:10px">Periodo ${mon} · ${r.g} giorni · Ordinarie ${fh(r.o)} h · Straordinario <b>${fh(r.s)} h</b></div>
+  dlg.innerHTML=`<h2>📋 ${esc(r.p.nome)}</h2><div class="mu" style="margin-bottom:10px">${esc(perLabel)} · ${r.g} giorni · Ordinarie ${fh(r.o)} h · Straordinario <b>${fh(r.s)} h</b></div>
   <div class="wrap"><table><tr><th>Giorno<th>Turno<th>Ingresso<th>Pausa<th>Fine pausa<th>Uscita<th>Straord.<th>Causali / Note</tr>
   ${r.det.length?r.det.map(d=>`<tr><td><b>${N[d.w]} ${formatD(d.k).slice(0,5)}</b><td><span class="pill p-no">${esc(d.turnoLabel)}</span><td>${d.en?hm(d.en):'–'}<td>${d.ip?hm(d.ip):(d.d?'<span class="mu">(-1h auto)</span>':'–')}<td>${d.fp?hm(d.fp):'–'}<td>${d.us?hm(d.us):'–'}<td><b>${fh(d.str)} h</b><td class="mu">${esc(d.causali||'–')}</tr>`).join(''):'<tr><td colspan="8" class="mu">Nessuna timbratura nel periodo.</td></tr>'}
   </table></div>
@@ -556,9 +599,9 @@ function repDett(id){const r=RROWS.find(x=>x.p.id===id);if(!r)return;const N=['D
   dlg.showModal()}
 
 function dl(nome,L){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+L.join('\n')],{type:'text/csv'}));a.download=nome;a.click()}
-function csvRiep(){dl('riepilogo_'+mon+'.csv',['Codice;Operatore;Sede;Giorni lavorati;Ore ordinarie;Ore straordinario;Netto;Euro per ora;Importo straordinario'].concat(RROWS.map(r=>[r.p.codice,r.p.nome,r.p.sede||'',r.g,fh(r.o),fh(r.s),r.p.netto!=null?fh(+r.p.netto):'',r.tar!=null?fh(r.tar):'',r.imp!=null?fh(r.imp):''].join(';'))))}
-function csvDett(){const N=['Dom','Lun','Mar','Mer','Gio','Ven','Sab'],L=['Data;Giorno;Codice;Operatore;Sede;Turno;Entrata;Uscita;Pausa timbrata;Pausa scalata (h);Ore nette;Ordinarie;Straordinario;Causali'];
-  RROWS.forEach(r=>r.det.forEach(d=>L.push([formatD(d.k),N[d.w],r.p.codice,r.p.nome,r.p.sede||'',d.turnoLabel,d.en?hm(d.en):'',d.us?hm(d.us):'',d.pz?'sì':'no',d.d,fh(d.h),fh(d.ord),fh(d.str),d.causali].join(';'))));dl('dettaglio_'+mon+'.csv',L)}
+function csvRiep(){const tag=RMODE==='range'?`${RFROM}_${RTO}`:mon;dl('riepilogo_'+tag+'.csv',['Codice;Operatore;Sede;Giorni lavorati;Ore ordinarie;Ore straordinario;Netto;Euro per ora;Importo straordinario'].concat(RROWS.map(r=>[r.p.codice,r.p.nome,r.p.sede||'',r.g,fh(r.o),fh(r.s),r.p.netto!=null?fh(+r.p.netto):'',r.tar!=null?fh(r.tar):'',r.imp!=null?fh(r.imp):''].join(';'))))}
+function csvDett(){const tag=RMODE==='range'?`${RFROM}_${RTO}`:mon,N=['Dom','Lun','Mar','Mer','Gio','Ven','Sab'],L=['Data;Giorno;Codice;Operatore;Sede;Turno;Entrata;Uscita;Pausa timbrata;Pausa scalata (h);Ore nette;Ordinarie;Straordinario;Causali'];
+  RROWS.forEach(r=>r.det.forEach(d=>L.push([formatD(d.k),N[d.w],r.p.codice,r.p.nome,r.p.sede||'',d.turnoLabel,d.en?hm(d.en):'',d.us?hm(d.us):'',d.pz?'sì':'no',d.d,fh(d.h),fh(d.ord),fh(d.str),d.causali].join(';'))));dl('dettaglio_'+tag+'.csv',L)}
 
 async function tSede(){return `<div class="card card-ac"><h2>📍 Sede per timbratura GPS</h2><p class="mu">Gli operatori con «GPS in sede» timbrano entro 50 o 100 m da questo punto (lo scegli per ogni operatore); «GPS ovunque» non ha limiti. Il controllo è fatto dal server.</p>
   <div class="row"><input id="la1" placeholder="Latitudine" value="${CFG.hq_lat??''}"><input id="lo1" placeholder="Longitudine" value="${CFG.hq_lng??''}"></div>
