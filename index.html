@@ -61,6 +61,7 @@ main{max-width:1180px;margin:0 auto;padding:18px}
 .stat-box.active{outline:3px solid var(--ac2);background:#eff6ff}
 h2{margin:0 0 12px;font-size:17px;color:#0f172a}
 input,select{width:100%;padding:11px 12px;border-radius:10px;border:1px solid #94a3b8;background:#fff;color:var(--tx);font:inherit;margin:4px 0 10px}
+input[readonly]{background:#e2e8f0;color:#334155;font-weight:700;cursor:default}
 input:focus,select:focus{outline:0;border-color:var(--ac2);box-shadow:0 0 0 3px rgba(37,99,235,.2)}
 button{font:inherit;font-weight:700;border:0;border-radius:10px;padding:12px 15px;background:var(--ac);color:#fff;cursor:pointer;width:100%;transition:transform .08s ease,filter .12s ease}
 button:hover:not(:disabled){filter:brightness(1.08)}
@@ -496,7 +497,7 @@ function calc(ev, turniOp){
   return {g:det.length,o,s,det};
 }
 
-let RC={key:null,ops:[],ev:[],tu:[]},RFILT='ALL',GM=null,RROWS=[];
+let RC={key:null,ops:[],ev:[],tu:[]},RFILT='ALL',RROWS=[];
 let RMODE='month'; // 'month' | 'range'
 let RFROM=mon+'-01', RTO=dkey(new Date());
 const r2=n=>Math.round(n*100)/100,eur=n=>n==null?'–':'€ '+n.toFixed(2).replace('.',','),fh=n=>n.toFixed(2).replace('.',',');
@@ -506,9 +507,6 @@ function setRepMode(m){
   if(m==='range'){
     if(!RFROM) RFROM=mon+'-01';
     if(!RTO) RTO=dkey(new Date());
-    GM=null;
-  }else{
-    GM=null;
   }
   go('rep');
 }
@@ -552,7 +550,8 @@ async function tRep(){
     return true;
   });
 
-  const gm=GM||gmAuto(refMon);
+  // Giorni lavorativi automatici dal calendario italiano (non modificabili manualmente)
+  const gm=gmAuto(refMon);
   RROWS=filteredOps.map(p=>{
     const c=calc(RC.ev.filter(x=>x.operatore_id===p.id), RC.tu.filter(x=>x.operatore_id===p.id));
     const tar=p.netto!=null?(p.netto/gm)/8:null;
@@ -570,11 +569,11 @@ async function tRep(){
       </select>
     </div>
     ${RMODE==='month'
-      ? `<div><label class="mu">Mese</label><input type="month" value="${mon}" onchange="mon=this.value;GM=null;go('rep')"></div>`
-      : `<div><label class="mu">Dal</label><input type="date" value="${dStart}" onchange="RFROM=this.value;GM=null;go('rep')"></div>
+      ? `<div><label class="mu">Mese</label><input type="month" value="${mon}" onchange="mon=this.value;go('rep')"></div>`
+      : `<div><label class="mu">Dal</label><input type="date" value="${dStart}" onchange="RFROM=this.value;go('rep')"></div>
          <div><label class="mu">Al</label><input type="date" value="${dEnd}" onchange="RTO=this.value;go('rep')"></div>`
     }
-    <div><label class="mu" title="Giorni lavorativi del mese di riferimento (${refMon}) usati per dividere il netto mensile">Gg lavorativi mese (${refMon})</label><input type="number" min="1" max="31" value="${gm}" onchange="GM=+this.value||null;go('rep')"></div>
+    <div><label class="mu">Gg lavorativi (${refMon} · cal. IT)</label><input type="text" value="${gm} gg" readonly tabindex="-1"></div>
     <div><label class="mu">Filtro Operatori / Sede</label>
       <select onchange="RFILT=this.value;go('rep')">
         <option value="ALL" ${RFILT==='ALL'?'selected':''}>👥 Tutti gli operatori (${RC.ops.length})</option>
@@ -584,7 +583,7 @@ async function tRep(){
     </div>
   </div>
   <div class="row"><button class="ok" onclick="csvRiep()">⬇️ Esporta riepilogo (${esc(perLabel)})</button><button class="s" onclick="csvDett()">⬇️ Esporta dettaglio giornaliero</button></div>
-  <p class="mu">Periodo visualizzato: <b>${esc(perLabel)}</b>. Clicca su un operatore per il dettaglio giornaliero e le causali. <b>Calcolo paga oraria:</b> Netto ÷ ${gm} gg lavorativi del mese (${refMon}, calendario IT) ÷ 8 h × ore straordinario.</p>
+  <p class="mu">Periodo visualizzato: <b>${esc(perLabel)}</b>. Clicca su un operatore per il dettaglio giornaliero e le causali. <b>Calcolo paga oraria:</b> Netto ÷ ${gm} gg lavorativi (${refMon}, calendario IT) ÷ 8 h × ore straordinario.</p>
   <div class="wrap"><table><tr><th>Operatore<th>Sede<th>Giorni<th>Ordinarie<th>Straord.<th>Netto<th>€/ora<th>Importo straord.</tr>${RROWS.map(r=>`<tr onclick="repDett('${r.p.id}')" style="cursor:pointer" title="Clicca per dettaglio giornaliero e causali"><td><b style="color:var(--ac2)">${esc(r.p.nome)}</b><div class="mu">${esc(r.p.codice)}</div><td>${esc(r.p.sede||'–')}<td>${r.g}<td>${fh(r.o)} h<td><b>${fh(r.s)} h</b><td>${r.p.netto!=null?eur(+r.p.netto):'<span class="pill p-er">manca</span>'}<td>${r.tar!=null?eur(r.tar):'–'}<td><b>${eur(r.imp)}</b>`).join('')}</table></div>
   <p style="text-align:right"><b>Totale straordinari: ${eur(tot)}</b></p></div>`}
 
